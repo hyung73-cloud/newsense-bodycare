@@ -4,7 +4,7 @@
  */
 export default function RulerOverlay() {
   const width = 200;
-  const height = 28;
+  const height = 32;
   const centerX = width / 2;
   const pxPerCm = 16;
 
@@ -17,87 +17,67 @@ export default function RulerOverlay() {
   }
 
   return (
-    <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 pointer-events-none z-10 px-1">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-7"
-        preserveAspectRatio="none"
-      >
-        {/* Background line */}
-        <line
-          x1={0}
-          y1={height / 2}
-          x2={width}
-          y2={height / 2}
-          stroke="rgba(255,255,255,0.85)"
-          strokeWidth={2}
-        />
+    <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 pointer-events-none z-10 px-0.5">
+      <div className="bg-black/35 backdrop-blur-[1px] rounded-sm mx-0.5">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="w-full h-8"
+          preserveAspectRatio="none"
+        >
+          <line
+            x1={0}
+            y1={height / 2}
+            x2={width}
+            y2={height / 2}
+            stroke="rgba(255,255,255,0.95)"
+            strokeWidth={1.5}
+          />
 
-        {/* Minor ticks */}
-        {minorTicks.map((cm) => {
-          const x = centerX + cm * pxPerCm;
-          if (x < 0 || x > width) return null;
-          return (
-            <g key={`minor-${cm}`}>
+          {minorTicks.map((cm) => {
+            const x = centerX + cm * pxPerCm;
+            if (x < 0 || x > width) return null;
+            return (
               <line
+                key={`minor-${cm}`}
                 x1={x}
-                y1={height / 2 - 4}
+                y1={height / 2 - 3}
                 x2={x}
-                y2={height / 2 + 4}
-                stroke="rgba(255,255,255,0.6)"
+                y2={height / 2 + 3}
+                stroke="rgba(255,255,255,0.55)"
                 strokeWidth={0.5}
               />
-            </g>
-          );
-        })}
+            );
+          })}
 
-        {/* Major ticks + labels */}
-        {majorTicks.map((cm) => {
-          const x = centerX + cm * pxPerCm;
-          return (
-            <g key={`major-${cm}`}>
-              <line
-                x1={x}
-                y1={height / 2 - 8}
-                x2={x}
-                y2={height / 2 + 8}
-                stroke="rgba(255,255,255,0.9)"
-                strokeWidth={1}
-              />
-              <text
-                x={x}
-                y={height / 2 - 10}
-                textAnchor="middle"
-                fill="rgba(255,255,255,0.95)"
-                fontSize={7}
-                fontWeight="bold"
-              >
-                {cm}
-              </text>
-            </g>
-          );
-        })}
+          {majorTicks.map((cm) => {
+            const x = centerX + cm * pxPerCm;
+            return (
+              <g key={`major-${cm}`}>
+                <line
+                  x1={x}
+                  y1={height / 2 - 7}
+                  x2={x}
+                  y2={height / 2 + 7}
+                  stroke="rgba(255,255,255,0.95)"
+                  strokeWidth={1}
+                />
+                <text
+                  x={x}
+                  y={height / 2 - 9}
+                  textAnchor="middle"
+                  fill="rgba(255,255,255,0.98)"
+                  fontSize={7}
+                  fontWeight="bold"
+                >
+                  {cm}
+                </text>
+              </g>
+            );
+          })}
 
-        {/* Center navel point */}
-        <circle cx={centerX} cy={height / 2} r={3} fill="#EF4444" stroke="white" strokeWidth={1} />
-
-        {/* Minor sub-labels between majors */}
-        {[-4.8, -4.6, -4.4, -4.2, 4.2, 4.4, 4.6, 4.8].map((cm) => {
-          const x = centerX + cm * pxPerCm;
-          return (
-            <text
-              key={`sub-${cm}`}
-              x={x}
-              y={height / 2 + 14}
-              textAnchor="middle"
-              fill="rgba(255,255,255,0.7)"
-              fontSize={5}
-            >
-              {cm}
-            </text>
-          );
-        })}
-      </svg>
+          <circle cx={centerX} cy={height / 2} r={2.5} fill="#EF4444" stroke="white" strokeWidth={1} />
+        </svg>
+      </div>
     </div>
   );
 }

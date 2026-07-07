@@ -14,7 +14,7 @@ const tabs: { key: PatientProfileTab; label: string }[] = [
 
 export default function PatientProfileTabs({ active, onChange }: PatientProfileTabsProps) {
   return (
-    <div className="bg-white rounded-card shadow-card px-2 py-1.5 inline-flex gap-1">
+    <div className="panel-card px-2 py-2 flex flex-wrap gap-1">
       {tabs.map((tab) => (
         <button
           key={tab.key}
@@ -22,7 +22,7 @@ export default function PatientProfileTabs({ active, onChange }: PatientProfileT
           onClick={() => onChange(tab.key)}
           className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
             active === tab.key
-              ? 'bg-primary text-white'
+              ? 'bg-primary text-white shadow-sm'
               : 'text-gray-600 hover:bg-gray-100'
           }`}
         >

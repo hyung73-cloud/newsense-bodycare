@@ -242,7 +242,7 @@ export default function PatientProfilePage() {
                     unit="cm"
                   />
 
-                  <div className="bg-white rounded-card shadow-card p-4">
+                  <div className="panel-card p-4">
                     <h4 className="text-xs font-bold text-gray-700 mb-3">의사 메모 (최근)</h4>
                     <div className="space-y-3">
                       {getDoctorMemos(patient.id, 3).map((m) => (
@@ -259,8 +259,8 @@ export default function PatientProfilePage() {
                 </div>
 
                 <div className="col-span-9">
-                  <div className="bg-white rounded-card shadow-card p-5">
-                    <h3 className="font-bold text-gray-900 mb-4">최근 변화 요약</h3>
+                  <div className="panel-card p-5">
+                    <h3 className="panel-title mb-4">최근 변화 요약</h3>
                     <div className="grid grid-cols-4 gap-4 mb-6">
                       <SummaryStat label="체중" value={`${latestVisit.weightKg} kg`} />
                       <SummaryStat label="허리둘레" value={`${latestVisit.waistCm} cm`} />
@@ -272,7 +272,7 @@ export default function PatientProfilePage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-card shadow-card p-12 text-center">
+              <div className="panel-card p-12 text-center">
                 <p className="text-gray-500 mb-4">방문 기록이 없습니다.</p>
                 <button
                   type="button"
@@ -297,10 +297,10 @@ export default function PatientProfilePage() {
         {activeTab === 'photos' && (
           <>
             {latestVisit ? (
-              <div className="bg-white rounded-card shadow-card p-5">
+              <div className="panel-card p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="font-bold text-gray-900">체형 사진 비교 (허리 중심 8cm 범위)</h3>
+                    <h3 className="panel-title">체형 사진 비교 (허리 중심 8cm 범위)</h3>
                     <p className="text-xs text-gray-400 mt-1">
                       눈금 단위: cm · 0 = 배꼽 중심 · 고정 SVG 가이드 오버레이
                     </p>
@@ -328,7 +328,7 @@ export default function PatientProfilePage() {
                 </p>
               </div>
             ) : (
-              <div className="bg-white rounded-card shadow-card p-12 text-center text-gray-500 text-sm">
+              <div className="panel-card p-12 text-center text-gray-500 text-sm">
                 사진 비교를 표시할 방문 기록이 없습니다.
               </div>
             )}
@@ -344,7 +344,7 @@ export default function PatientProfilePage() {
         )}
 
         {latestVisit && (
-          <div className="flex items-center justify-between bg-white rounded-card shadow-card px-5 py-3">
+          <div className="flex items-center justify-between panel-card px-5 py-3">
             <div className="text-xs text-gray-400">
               입력자: {latestVisit.enteredBy} · 입력일시: {latestVisit.enteredAt}
             </div>
@@ -381,7 +381,7 @@ export default function PatientProfilePage() {
 
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-gray-50 rounded-lg p-4 text-center">
+    <div className="summary-stat">
       <div className="text-xs text-gray-400">{label}</div>
       <div className="text-lg font-bold text-gray-900 mt-1">{value}</div>
     </div>

@@ -48,4 +48,16 @@ body {
   .input-field {
     @apply w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary;
   }
+
+  .panel-subtitle {
+    @apply text-xs text-gray-500;
+  }
+
+  .summary-stat {
+    @apply bg-gray-50 border border-border rounded-lg p-4 text-center;
+  }
+
+  .section-divider {
+    @apply border-t border-gray-100;
+  }
 }

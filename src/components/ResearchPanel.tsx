@@ -11,8 +11,8 @@ interface ResearchPanelProps {
 
 export default function ResearchPanel({ items }: ResearchPanelProps) {
   return (
-    <div className="bg-white rounded-card shadow-card p-5 h-full">
-      <h3 className="font-bold text-gray-900 text-sm mb-4">연구 항목</h3>
+      <div className="panel-card p-5 h-full">
+        <h3 className="panel-title mb-4">연구 항목</h3>
       <div className="space-y-4">
         {items.map((item) => (
           <div key={item.label} className="border-b border-gray-50 pb-3 last:border-0">

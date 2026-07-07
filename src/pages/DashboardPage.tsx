@@ -70,8 +70,11 @@ export default function DashboardPage() {
                 <span className="text-[10px] text-gray-400">{stats.date}</span>
               </div>
               <div className="space-y-2.5">
-                {statItems.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between">
+                {statItems.map((item, idx) => (
+                  <div
+                    key={item.label}
+                    className={`flex items-center justify-between py-0.5 ${idx > 0 ? 'section-divider pt-2.5' : ''}`}
+                  >
                     <span className="flex items-center gap-1.5 text-xs text-gray-600">
                       <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
                       {item.label}

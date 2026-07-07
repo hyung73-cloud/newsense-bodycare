@@ -34,8 +34,8 @@ export default function InbodySummary({ records }: InbodySummaryProps) {
 
   return (
     <>
-      <div className="bg-white rounded-card shadow-card p-5 h-full">
-        <h3 className="font-bold text-gray-900 text-sm mb-4">인바디 결과 요약</h3>
+      <div className="panel-card p-5 h-full">
+        <h3 className="panel-title mb-4">인바디 결과 요약</h3>
         <div className="flex gap-4">
           <button
             type="button"
@@ -49,8 +49,8 @@ export default function InbodySummary({ records }: InbodySummaryProps) {
           <div className="flex-1 overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-gray-400">
-                  <th className="text-left py-1.5 font-medium">항목</th>
+                <tr className="table-head text-gray-400">
+                  <th className="table-head-cell text-left">항목</th>
                   {records.map((r) => (
                     <th key={r.date} className="text-right py-1.5 font-medium">
                       {r.date.slice(5).replace('-', '.')}

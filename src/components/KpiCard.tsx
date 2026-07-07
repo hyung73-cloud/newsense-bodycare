@@ -33,7 +33,7 @@ export default function KpiCard({
   const changeSign = change > 0 ? '+' : '';
 
   return (
-    <div className="bg-white rounded-card shadow-card p-4">
+    <div className="panel-card p-4">
       <div className="flex items-start justify-between">
         <div>
           <div className="text-xs text-gray-500 mb-1">{title}</div>
