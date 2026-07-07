@@ -26,11 +26,7 @@ import {
   getRecentPatientCardData,
 } from '../api/mock';
 
-interface DashboardPageProps {
-  onLogout?: () => void;
-}
-
-export default function DashboardPage({ onLogout }: DashboardPageProps) {
+export default function DashboardPage() {
   const [timestamp, setTimestamp] = useState(new Date());
 
   useEffect(() => {
@@ -60,7 +56,7 @@ export default function DashboardPage({ onLogout }: DashboardPageProps) {
 
   return (
     <div className="min-h-screen bg-surface">
-      <TopNav activeTab="dashboard" onLogout={onLogout} />
+      <TopNav activeTab="dashboard" />
 
       <main className="max-w-[1440px] mx-auto px-6 py-5 space-y-5">
         {/* 3컬럼 동일 높이 — 각 컬럼 내부 flex로 빈 공간 제거 */}

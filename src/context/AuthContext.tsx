@@ -1,0 +1,59 @@
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import PinLoginGate from '../components/PinLoginGate';
+import { setStaffName } from '../api/mock';
+
+const AUTH_KEY = 'bodycare-auth-v1';
+const STAFF_KEY = 'bodycare-staff-name-v1';
+
+interface AuthContextValue {
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+  const [authenticated, setAuthenticated] = useState(false);
+  const [booting, setBooting] = useState(true);
+
+  useEffect(() => {
+    const savedAuth = localStorage.getItem(AUTH_KEY) === '1';
+    const savedStaff = localStorage.getItem(STAFF_KEY);
+    if (savedStaff) setStaffName(savedStaff);
+    setAuthenticated(savedAuth);
+    setBooting(false);
+  }, []);
+
+  const login = (adminName: string) => {
+    setStaffName(adminName);
+    localStorage.setItem(STAFF_KEY, adminName);
+    localStorage.setItem(AUTH_KEY, '1');
+    setAuthenticated(true);
+    navigate('/', { replace: true });
+  };
+
+  const logout = () => {
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(STAFF_KEY);
+    setStaffName('김실장');
+    setAuthenticated(false);
+    navigate('/', { replace: true });
+  };
+
+  if (booting) {
+    return <div className="min-h-screen bg-surface" />;
+  }
+
+  if (!authenticated) {
+    return <PinLoginGate onLogin={login} />;
+  }
+
+  return <AuthContext.Provider value={{ logout }}>{children}</AuthContext.Provider>;
+}

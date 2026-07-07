@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { getStaff } from '../api/mock';
+import { useAuth } from '../context/AuthContext';
 import QuickSearch from './QuickSearch';
 
 const tabs = [
@@ -12,11 +13,11 @@ const tabs = [
 
 interface TopNavProps {
   activeTab?: 'dashboard' | 'search' | 'today' | 'manage';
-  onLogout?: () => void;
 }
 
-export default function TopNav({ activeTab, onLogout }: TopNavProps) {
+export default function TopNav({ activeTab }: TopNavProps) {
   const location = useLocation();
+  const { logout } = useAuth();
   const staff = getStaff();
   const isPatientPage = location.pathname.startsWith('/patient/');
   const resolvedTab = activeTab ?? (isPatientPage ? 'manage' : 'dashboard');
@@ -59,7 +60,7 @@ export default function TopNav({ activeTab, onLogout }: TopNavProps) {
           </span>
           <button
             type="button"
-            onClick={onLogout}
+            onClick={logout}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap transition-colors"
           >
             <LogOut className="w-4 h-4" />
