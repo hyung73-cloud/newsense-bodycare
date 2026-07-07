@@ -1,7 +1,0 @@
-name = "newsense-bodycare"
-compatibility_date = "2026-07-07"
-
-# dist 폴더를 그대로 배포 (Vite 재빌드 없음)
-[assets]
-directory = "./dist"
-not_found_handling = "single-page-application"
