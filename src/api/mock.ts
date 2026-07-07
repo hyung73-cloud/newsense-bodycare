@@ -1,0 +1,574 @@
+import type {
+  CalendarDay,
+  InbodyRecord,
+  Patient,
+  ProcedureTag,
+  ProgressStats,
+  RecentMemo,
+  StaffInfo,
+  TodayStats,
+  Visit,
+  VisitImage,
+} from '../types';
+
+const PLACEHOLDER_FRONT =
+  'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200&h=280&fit=crop&crop=center';
+const PLACEHOLDER_SIDE =
+  'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=200&h=280&fit=crop&crop=center';
+const INBODY_SHEET =
+  'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=300&h=400&fit=crop';
+
+export const TODAY = '2025-12-16';
+export const TODAY_DISPLAY = '2025.12.16 (화)';
+
+export const staff: StaffInfo = { name: '김실장' };
+
+export const patients: Patient[] = [
+  {
+    id: 'p1',
+    chartNo: '000125',
+    name: '김뉴센',
+    sex: '여',
+    birth: '1999.11.25',
+    ageAtToday: 26,
+    heightCm: 162,
+    startDate: '2025.11.25',
+    totalVisits: 3,
+    lastVisitDate: '2025.12.16',
+  },
+  {
+    id: 'p2',
+    chartNo: '000118',
+    name: '이건강',
+    sex: '남',
+    birth: '1988.03.14',
+    ageAtToday: 37,
+    heightCm: 175,
+    startDate: '2025.12.10',
+    totalVisits: 2,
+    lastVisitDate: '2025.12.16',
+  },
+  {
+    id: 'p3',
+    chartNo: '000132',
+    name: '박다이어트',
+    sex: '여',
+    birth: '1992.07.08',
+    ageAtToday: 33,
+    heightCm: 158,
+    startDate: '2025.12.14',
+    totalVisits: 1,
+    lastVisitDate: '2025.12.16',
+  },
+  {
+    id: 'p4',
+    chartNo: '000109',
+    name: '최슬림',
+    sex: '여',
+    birth: '1985.01.20',
+    ageAtToday: 40,
+    heightCm: 165,
+    startDate: '2025.10.05',
+    totalVisits: 8,
+    lastVisitDate: '2025.12.16',
+  },
+  {
+    id: 'p5',
+    chartNo: '000141',
+    name: '정바디',
+    sex: '남',
+    birth: '1995.09.30',
+    ageAtToday: 30,
+    heightCm: 178,
+    startDate: '2025.12.16',
+    totalVisits: 1,
+    lastVisitDate: '2025.12.16',
+  },
+  {
+    id: 'p6',
+    chartNo: '000098',
+    name: '한웰니스',
+    sex: '여',
+    birth: '1978.12.02',
+    ageAtToday: 47,
+    heightCm: 160,
+    startDate: '2025.09.01',
+    totalVisits: 12,
+    lastVisitDate: '2025.12.16',
+  },
+];
+
+export const visits: Visit[] = [
+  // 김뉴센 - 3 visits
+  {
+    id: 'v1',
+    patientId: 'p1',
+    date: '2025.11.25',
+    weightKg: 72.5,
+    waistCm: 88,
+    bodyFatPct: 43.2,
+    skeletalMuscleKg: 19.6,
+    visceralLevel: 13,
+    doctorNote: '초진. 체중관리 프로그램 시작. 식이조절 및 유산소 운동 권고.',
+    photoUploaded: true,
+    inbodyUploaded: true,
+    status: '완료',
+    enteredBy: '김실장',
+    enteredAt: '2025.11.25 10:30',
+    hidden: false,
+  },
+  {
+    id: 'v2',
+    patientId: 'p1',
+    date: '2025.12.02',
+    weightKg: 71.2,
+    waistCm: 86,
+    bodyFatPct: 41.5,
+    skeletalMuscleKg: 19.8,
+    visceralLevel: 12,
+    doctorNote: '1주차 재진. 체중 1.3kg 감소. 식단 준수 양호.',
+    photoUploaded: true,
+    inbodyUploaded: true,
+    status: '완료',
+    enteredBy: '김실장',
+    enteredAt: '2025.12.02 11:00',
+    hidden: false,
+  },
+  {
+    id: 'v3',
+    patientId: 'p1',
+    date: '2025.12.16',
+    weightKg: 70.0,
+    waistCm: 84,
+    bodyFatPct: 40.0,
+    skeletalMuscleKg: 20.0,
+    visceralLevel: 12,
+    doctorNote: '3주차 재진. 체지방률 3.2%p 감소. 골격근량 유지 양호. 다음 방문 2주 후.',
+    photoUploaded: true,
+    inbodyUploaded: true,
+    status: '완료',
+    enteredBy: '김실장',
+    enteredAt: '2025.12.16 10:40',
+    hidden: false,
+  },
+  // 이건강
+  {
+    id: 'v4',
+    patientId: 'p2',
+    date: '2025.12.10',
+    weightKg: 85.0,
+    waistCm: 92,
+    bodyFatPct: 28.5,
+    skeletalMuscleKg: 32.0,
+    visceralLevel: 10,
+    doctorNote: '초진. 복부비만 위주. 근력운동 병행 권고.',
+    photoUploaded: true,
+    inbodyUploaded: true,
+    status: '완료',
+    enteredBy: '김실장',
+    enteredAt: '2025.12.10 14:20',
+    hidden: false,
+  },
+  {
+    id: 'v5',
+    patientId: 'p2',
+    date: '2025.12.16',
+    weightKg: 83.5,
+    waistCm: 90,
+    bodyFatPct: 27.8,
+    skeletalMuscleKg: 32.2,
+    visceralLevel: 9,
+    doctorNote: '재진. 체중 감소 추세 양호.',
+    photoUploaded: true,
+    inbodyUploaded: true,
+    status: '완료',
+    enteredBy: '김실장',
+    enteredAt: '2025.12.16 09:15',
+    hidden: false,
+  },
+  // 박다이어트 - 신규
+  {
+    id: 'v6',
+    patientId: 'p3',
+    date: '2025.12.16',
+    weightKg: 68.0,
+    waistCm: 82,
+    bodyFatPct: 35.0,
+    skeletalMuscleKg: 22.0,
+    visceralLevel: 8,
+    doctorNote: '신규 등록. 목표 체중 60kg.',
+    photoUploaded: true,
+    inbodyUploaded: false,
+    status: '미완료',
+    enteredBy: '김실장',
+    enteredAt: '2025.12.16 11:30',
+    hidden: false,
+  },
+  // 최슬림
+  {
+    id: 'v7',
+    patientId: 'p4',
+    date: '2025.12.16',
+    weightKg: 62.0,
+    waistCm: 74,
+    bodyFatPct: 30.5,
+    skeletalMuscleKg: 24.5,
+    visceralLevel: 6,
+    doctorNote: '정기 재진. 유지기 관리 중.',
+    photoUploaded: true,
+    inbodyUploaded: true,
+    status: '완료',
+    enteredBy: '김실장',
+    enteredAt: '2025.12.16 10:00',
+    hidden: false,
+  },
+  // 정바디 - 신규, 진행중
+  {
+    id: 'v8',
+    patientId: 'p5',
+    date: '2025.12.16',
+    weightKg: 92.0,
+    waistCm: 98,
+    bodyFatPct: 32.0,
+    skeletalMuscleKg: 35.0,
+    visceralLevel: 14,
+    doctorNote: '신규 등록. 인바디 대기 중.',
+    photoUploaded: true,
+    inbodyUploaded: false,
+    status: '진행중',
+    enteredBy: '김실장',
+    enteredAt: '2025.12.16 11:45',
+    hidden: false,
+  },
+  // 한웰니스
+  {
+    id: 'v9',
+    patientId: 'p6',
+    date: '2025.12.16',
+    weightKg: 58.5,
+    waistCm: 72,
+    bodyFatPct: 28.0,
+    skeletalMuscleKg: 23.0,
+    visceralLevel: 5,
+    doctorNote: '장기 관리 환자. 현재 상태 양호.',
+    photoUploaded: true,
+    inbodyUploaded: true,
+    status: '완료',
+    enteredBy: '김실장',
+    enteredAt: '2025.12.16 08:50',
+    hidden: false,
+  },
+];
+
+export const visitImages: VisitImage[] = [
+  { id: 'img1', visitId: 'v1', type: 'front', url: PLACEHOLDER_FRONT, weightKg: 72.5, waistCm: 88 },
+  { id: 'img2', visitId: 'v1', type: 'side', url: PLACEHOLDER_SIDE, weightKg: 72.5, waistCm: 88 },
+  { id: 'img3', visitId: 'v2', type: 'front', url: PLACEHOLDER_FRONT, weightKg: 71.2, waistCm: 86 },
+  { id: 'img4', visitId: 'v2', type: 'side', url: PLACEHOLDER_SIDE, weightKg: 71.2, waistCm: 86 },
+  { id: 'img5', visitId: 'v3', type: 'front', url: PLACEHOLDER_FRONT, weightKg: 70.0, waistCm: 84 },
+  { id: 'img6', visitId: 'v3', type: 'side', url: PLACEHOLDER_SIDE, weightKg: 70.0, waistCm: 84 },
+];
+
+export const inbodyRecords: InbodyRecord[] = [
+  {
+    visitId: 'v1',
+    weightKg: 72.5,
+    skeletalMuscleKg: 19.6,
+    bodyFatPct: 43.2,
+    visceralLevel: 13,
+    bmrKcal: 1205,
+    abdominalFatRatio: 0.92,
+    smi: 5.8,
+    sheetImageUrl: INBODY_SHEET,
+  },
+  {
+    visitId: 'v2',
+    weightKg: 71.2,
+    skeletalMuscleKg: 19.8,
+    bodyFatPct: 41.5,
+    visceralLevel: 12,
+    bmrKcal: 1190,
+    abdominalFatRatio: 0.88,
+    smi: 5.9,
+    sheetImageUrl: INBODY_SHEET,
+  },
+  {
+    visitId: 'v3',
+    weightKg: 70.0,
+    skeletalMuscleKg: 20.0,
+    bodyFatPct: 40.0,
+    visceralLevel: 12,
+    bmrKcal: 1178,
+    abdominalFatRatio: 0.85,
+    smi: 6.1,
+    sheetImageUrl: INBODY_SHEET,
+  },
+];
+
+export const procedureTags: ProcedureTag[] = [
+  { key: 'arginine', label: '아르기닌 수액요법', count: 5, patientIds: ['p1', 'p2', 'p4', 'p5', 'p6'] },
+  { key: 'carboxy', label: '카복시테라피', count: 3, patientIds: ['p1', 'p3', 'p4'] },
+  { key: 'liposuction', label: '부분 피하지방 시술', count: 4, patientIds: ['p2', 'p4', 'p5', 'p6'] },
+  { key: 'cnu', label: '씨앤유 처방', count: 7, patientIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p2'] },
+  { key: 'hba1c', label: '당화혈색소 검사', count: 2, patientIds: ['p4', 'p6'] },
+];
+
+export const todayStats: TodayStats = {
+  date: TODAY_DISPLAY,
+  totalVisits: 18,
+  newPatients: 3,
+  photoUploaded: 17,
+  inbodyUploaded: 16,
+  incomplete: 2,
+};
+
+export const progressStats: ProgressStats = {
+  total: 18,
+  completed: 16,
+  inProgress: 1,
+  incomplete: 1,
+};
+
+export const recentMemos: RecentMemo[] = [
+  {
+    id: 'm1',
+    date: '2025.12.16',
+    patientName: '김뉴센',
+    patientId: 'p1',
+    summary: '체지방률 3.2%p 감소. 골격근량 유지 양호.',
+  },
+  {
+    id: 'm2',
+    date: '2025.12.16',
+    patientName: '이건강',
+    patientId: 'p2',
+    summary: '체중 1.5kg 감소. 식단 준수 양호.',
+  },
+  {
+    id: 'm3',
+    date: '2025.12.15',
+    patientName: '최슬림',
+    patientId: 'p4',
+    summary: '유지기 관리. 다음 방문 4주 후 예정.',
+  },
+];
+
+function generateCalendarDays(year: number, month: number): CalendarDay[] {
+  const days: CalendarDay[] = [];
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const visitMap: Record<string, { total: number; newCount: number; returning: number }> = {
+    '2025-12-02': { total: 12, newCount: 1, returning: 11 },
+    '2025-12-09': { total: 15, newCount: 2, returning: 13 },
+    '2025-12-10': { total: 10, newCount: 2, returning: 8 },
+    '2025-12-14': { total: 8, newCount: 1, returning: 7 },
+    '2025-12-16': { total: 18, newCount: 3, returning: 15 },
+  };
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const data = visitMap[dateStr];
+    days.push({
+      date: dateStr,
+      visitCount: data?.total ?? 0,
+      newCount: data?.newCount ?? 0,
+      returningCount: data?.returning ?? 0,
+    });
+  }
+  return days;
+}
+
+export const calendarDays = generateCalendarDays(2025, 12);
+
+// --- API-like getters ---
+
+export function getStaff(): StaffInfo {
+  return staff;
+}
+
+export function getTodayStats(): TodayStats {
+  return todayStats;
+}
+
+export function getProgressStats(): ProgressStats {
+  return progressStats;
+}
+
+export function getRecentMemos(limit = 3): RecentMemo[] {
+  return recentMemos.slice(0, limit);
+}
+
+export function getRecentPatients(limit = 3): Patient[] {
+  return [...patients]
+    .sort((a, b) => b.lastVisitDate.localeCompare(a.lastVisitDate))
+    .slice(0, limit);
+}
+
+export function getTodayVisits(): (Visit & { patient: Patient; index: number })[] {
+  const todayVisitList = visits
+    .filter((v) => v.date === TODAY && !v.hidden)
+    .map((v) => ({
+      ...v,
+      patient: patients.find((p) => p.id === v.patientId)!,
+    }));
+
+  // Pad to 18 for display consistency with stats (add mock entries)
+  const base = todayVisitList;
+  const extraCount = todayStats.totalVisits - base.length;
+  const extras: (Visit & { patient: Patient; index: number })[] = [];
+
+  for (let i = 0; i < extraCount; i++) {
+    const p = patients[i % patients.length];
+    const existing = base.find((v) => v.patientId === p.id);
+    if (existing) continue;
+    extras.push({
+      id: `mock-${i}`,
+      patientId: p.id,
+      date: TODAY,
+      weightKg: 65 + i,
+      waistCm: 75 + i,
+      bodyFatPct: 30,
+      skeletalMuscleKg: 22,
+      visceralLevel: 8,
+      doctorNote: '',
+      photoUploaded: true,
+      inbodyUploaded: true,
+      status: '완료' as const,
+      enteredBy: '김실장',
+      enteredAt: '2025.12.16 09:00',
+      hidden: false,
+      patient: p,
+      index: 0,
+    });
+  }
+
+  const combined = [...base, ...extras].slice(0, todayStats.totalVisits);
+  return combined.map((v, idx) => ({ ...v, index: idx + 1 }));
+}
+
+export function getCalendarDays(year: number, month: number): CalendarDay[] {
+  if (year === 2025 && month === 12) return calendarDays;
+  return generateCalendarDays(year, month);
+}
+
+export function getProcedureTags(): ProcedureTag[] {
+  return procedureTags;
+}
+
+export function getPatientsByProcedure(key: string): Patient[] {
+  const tag = procedureTags.find((t) => t.key === key);
+  if (!tag) return [];
+  const uniqueIds = [...new Set(tag.patientIds)];
+  return uniqueIds.map((id) => patients.find((p) => p.id === id)!).filter(Boolean);
+}
+
+export function getPatientById(id: string): Patient | undefined {
+  return patients.find((p) => p.id === id);
+}
+
+export function getVisitsByPatientId(patientId: string): Visit[] {
+  return visits
+    .filter((v) => v.patientId === patientId && !v.hidden)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function getLatestVisit(patientId: string): Visit | undefined {
+  const list = getVisitsByPatientId(patientId);
+  return list[list.length - 1];
+}
+
+export function getPreviousVisit(patientId: string): Visit | undefined {
+  const list = getVisitsByPatientId(patientId);
+  return list.length >= 2 ? list[list.length - 2] : undefined;
+}
+
+export function getVisitImages(visitId: string, type: 'front' | 'side'): VisitImage | undefined {
+  return visitImages.find((img) => img.visitId === visitId && img.type === type);
+}
+
+export function getInbodyRecordsByPatient(patientId: string): (InbodyRecord & { date: string })[] {
+  const patientVisits = getVisitsByPatientId(patientId);
+  return patientVisits
+    .map((v) => {
+      const record = inbodyRecords.find((r) => r.visitId === v.id);
+      if (!record) return null;
+      return { ...record, date: v.date };
+    })
+    .filter(Boolean) as (InbodyRecord & { date: string })[];
+}
+
+export function getLatestInbody(patientId: string): InbodyRecord | undefined {
+  const records = getInbodyRecordsByPatient(patientId);
+  if (records.length === 0) return undefined;
+  return records[records.length - 1];
+}
+
+export function hideVisit(visitId: string): void {
+  const visit = visits.find((v) => v.id === visitId);
+  if (visit) visit.hidden = true;
+}
+
+export function searchPatients(query: string): Patient[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return patients.filter(
+    (p) =>
+      p.name.toLowerCase().includes(q) ||
+      p.chartNo.includes(q) ||
+      p.birth.includes(q),
+  );
+}
+
+export function getPatientVisitStats(patientId: string, visit: Visit) {
+  const prev = getPreviousVisit(patientId);
+  return {
+    bodyFatChange: prev ? visit.bodyFatPct - prev.bodyFatPct : 0,
+    muscleChange: prev ? visit.skeletalMuscleKg - prev.skeletalMuscleKg : 0,
+    visceralChange: prev ? visit.visceralLevel - prev.visceralLevel : 0,
+  };
+}
+
+export function getWeightChartData(patientId: string) {
+  return getVisitsByPatientId(patientId).map((v) => ({
+    date: v.date.slice(5).replace('-', '.'),
+    value: v.weightKg,
+  }));
+}
+
+export function getWaistChartData(patientId: string) {
+  return getVisitsByPatientId(patientId).map((v) => ({
+    date: v.date.slice(5).replace('-', '.'),
+    value: v.waistCm,
+  }));
+}
+
+export function getChangeChartData(patientId: string) {
+  return getVisitsByPatientId(patientId).map((v) => ({
+    date: v.date.slice(5).replace('-', '.'),
+    weight: v.weightKg,
+    muscle: v.skeletalMuscleKg,
+    bodyFat: v.bodyFatPct,
+    waist: v.waistCm,
+  }));
+}
+
+export function getDoctorMemos(patientId: string, limit = 3): { date: string; note: string }[] {
+  return getVisitsByPatientId(patientId)
+    .filter((v) => v.doctorNote)
+    .slice(-limit)
+    .reverse()
+    .map((v) => ({ date: v.date.replace(/-/g, '.'), note: v.doctorNote }));
+}
+
+export function getRecentPatientCardData(patientId: string) {
+  const patient = getPatientById(patientId)!;
+  const visit = getLatestVisit(patientId)!;
+  const frontImg = getVisitImages(visit.id, 'front');
+  return {
+    patient,
+    visit,
+    imageUrl: frontImg?.url ?? PLACEHOLDER_FRONT,
+    weightKg: visit.weightKg,
+    waistCm: visit.waistCm,
+    bodyFatPct: visit.bodyFatPct,
+  };
+}
