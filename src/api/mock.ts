@@ -21,7 +21,7 @@ const INBODY_SHEET =
 export const TODAY = '2025-12-16';
 export const TODAY_DISPLAY = '2025.12.16 (화)';
 
-export const staff: StaffInfo = { name: '김실장' };
+export const staff: StaffInfo = { name: '김민수' };
 
 export const patients: Patient[] = [
   {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LockKeyhole } from 'lucide-react';
-import { getAdminNames, verifyAdminPin } from '../auth/adminAuth';
+import { getAdminAccounts, getDefaultAdminName, verifyAdminPin } from '../auth/adminAuth';
 
 const NATURE_BG =
   'https://images.unsplash.com/photo-1518020382113-a7e8c38c541f?w=1920&h=1080&fit=crop&q=80';
@@ -9,11 +9,11 @@ interface PinLoginGateProps {
   onLogin: (adminName: string) => void;
 }
 
-const adminNames = getAdminNames();
-const DEFAULT_ADMIN_NAME = adminNames[0] ?? '';
-
 export default function PinLoginGate({ onLogin }: PinLoginGateProps) {
-  const [adminName, setAdminName] = useState(DEFAULT_ADMIN_NAME);
+  const adminAccounts = getAdminAccounts();
+  const defaultName = getDefaultAdminName();
+
+  const [adminName, setAdminName] = useState(defaultName);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
 
@@ -32,7 +32,7 @@ export default function PinLoginGate({ onLogin }: PinLoginGateProps) {
       return;
     }
     setError('');
-    onLogin(adminName.trim() || DEFAULT_ADMIN_NAME);
+    onLogin(adminName.trim());
   };
 
   return (
@@ -63,18 +63,17 @@ export default function PinLoginGate({ onLogin }: PinLoginGateProps) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs text-gray-500 mb-1">관리자명</label>
-              <input
-                list="admin-name-options"
+              <select
                 value={adminName}
                 onChange={(e) => setAdminName(e.target.value)}
                 className="input-field"
-                placeholder="관리자명"
-              />
-              <datalist id="admin-name-options">
-                {adminNames.map((name) => (
-                  <option key={name} value={name} />
+              >
+                {adminAccounts.map((account) => (
+                  <option key={account.id} value={account.name}>
+                    {account.name}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </div>
 
             <div>

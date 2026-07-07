@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PinLoginGate from '../components/PinLoginGate';
+import { getDefaultAdminName } from '../auth/adminAuth';
 import { setStaffName } from '../api/mock';
 
 const AUTH_KEY = 'bodycare-auth-v1';
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(STAFF_KEY);
-    setStaffName('김실장');
+    setStaffName(getDefaultAdminName());
     setAuthenticated(false);
     navigate('/', { replace: true });
   };

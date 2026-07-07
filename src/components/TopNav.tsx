@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { LogOut, Settings } from 'lucide-react';
 import { getStaff } from '../api/mock';
 import { useAuth } from '../context/AuthContext';
 import QuickSearch from './QuickSearch';
@@ -54,10 +54,18 @@ export default function TopNav({ activeTab }: TopNavProps) {
           <QuickSearch variant="nav" />
         </div>
 
-        <div className="flex items-center gap-4 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0">
           <span className="text-sm text-gray-600 whitespace-nowrap">
             직원 : <span className="font-medium text-gray-900">{staff.name}</span>
           </span>
+          <Link
+            to="/settings/admins"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap transition-colors"
+            title="관리자 설정"
+          >
+            <Settings className="w-4 h-4" />
+            관리자설정
+          </Link>
           <button
             type="button"
             onClick={logout}
