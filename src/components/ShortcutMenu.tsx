@@ -20,19 +20,19 @@ const shortcuts = [
 
 export default function ShortcutMenu() {
   return (
-    <div className="bg-white rounded-card shadow-card p-5">
-      <h3 className="font-bold text-gray-900 mb-4">바로가기 메뉴</h3>
-      <div className="grid grid-cols-7 gap-3">
+    <div className="panel-card p-5">
+      <h3 className="panel-title mb-4">바로가기 메뉴</h3>
+      <div className="grid grid-cols-7 gap-3.5">
         {shortcuts.map((s) => (
           <button
             key={s.label}
             type="button"
-            className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex flex-col items-center gap-2.5 p-3 rounded-xl border border-transparent hover:bg-gray-50 hover:border-gray-200 transition-colors"
           >
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.color}`}>
               <s.icon className="w-5 h-5" />
             </div>
-            <span className="text-xs text-gray-600 text-center leading-tight">{s.label}</span>
+            <span className="text-xs text-gray-600 text-center leading-tight font-medium">{s.label}</span>
           </button>
         ))}
       </div>

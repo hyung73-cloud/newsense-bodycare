@@ -26,7 +26,11 @@ import {
   getRecentPatientCardData,
 } from '../api/mock';
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+  onLogout?: () => void;
+}
+
+export default function DashboardPage({ onLogout }: DashboardPageProps) {
   const [timestamp, setTimestamp] = useState(new Date());
 
   useEffect(() => {
@@ -56,20 +60,20 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <TopNav activeTab="dashboard" />
+      <TopNav activeTab="dashboard" onLogout={onLogout} />
 
-      <main className="max-w-[1440px] mx-auto px-6 py-4 space-y-4">
+      <main className="max-w-[1440px] mx-auto px-6 py-5 space-y-5">
         {/* 3컬럼 동일 높이 — 각 컬럼 내부 flex로 빈 공간 제거 */}
-        <div className="grid grid-cols-12 gap-4 items-stretch">
+        <div className="grid grid-cols-12 gap-5 items-stretch">
           {/* 왼쪽 */}
-          <div className="col-span-3 flex flex-col gap-3">
+          <div className="col-span-3 flex flex-col gap-4">
             <StatCard />
-            <div className="panel-card p-4 flex-shrink-0">
-              <div className="flex items-center justify-between mb-3">
+            <div className="panel-card p-5 flex-shrink-0">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="panel-title">오늘 통계</h3>
                 <span className="text-[10px] text-gray-400">{stats.date}</span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {statItems.map((item) => (
                   <div key={item.label} className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 text-xs text-gray-600">
@@ -84,7 +88,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div className="panel-card p-4 flex-1 flex flex-col min-h-0">
+            <div className="panel-card p-5 flex-1 flex flex-col min-h-0">
               <div className="flex items-center justify-between mb-2 flex-shrink-0">
                 <h3 className="panel-title">최근 메모(3건)</h3>
                 <button type="button" className="text-[10px] text-primary flex items-center gap-0.5 hover:underline">
@@ -106,10 +110,10 @@ export default function DashboardPage() {
           </div>
 
           {/* 가운데 */}
-          <div className="col-span-6 flex flex-col gap-3">
+          <div className="col-span-6 flex flex-col gap-4">
             <div className="flex-shrink-0">
-              <h3 className="panel-title mb-2">최근 등록 환자 (3명)</h3>
-              <div className="grid grid-cols-3 gap-3">
+              <h3 className="panel-title mb-3">최근 등록 환자 (3명)</h3>
+              <div className="grid grid-cols-3 gap-4">
                 {recentPatients.map((p) => {
                   const card = getRecentPatientCardData(p.id);
                   return (
@@ -130,7 +134,7 @@ export default function DashboardPage() {
           </div>
 
           {/* 오른쪽 */}
-          <div className="col-span-3 flex flex-col gap-3">
+          <div className="col-span-3 flex flex-col gap-4">
             <VisitCalendar />
             <ProgressDonut stats={progress} className="flex-1 min-h-0" />
           </div>

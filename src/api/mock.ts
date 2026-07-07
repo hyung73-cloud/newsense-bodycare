@@ -385,6 +385,10 @@ export function getStaff(): StaffInfo {
   return staff;
 }
 
+export function setStaffName(name: string): void {
+  staff.name = name;
+}
+
 export function getTodayStats(): TodayStats {
   return todayStats;
 }

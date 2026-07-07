@@ -30,25 +30,25 @@ export default function ProcedureTagBar({ tags }: ProcedureTagBarProps) {
   const selectedPatients = selected ? getPatientsByProcedure(selected) : [];
 
   return (
-    <div className="bg-white rounded-card shadow-card p-5">
+    <div className="panel-card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-900">시술/검사 환자 관리</h3>
+        <h3 className="panel-title">시술/검사 환자 관리</h3>
         <button
           type="button"
           onClick={() => setShowAll(!showAll)}
-          className="text-sm text-primary hover:underline"
+          className="text-sm text-primary hover:underline font-medium"
         >
           전체 시술/검사 환자 보기 →
         </button>
       </div>
 
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-5 gap-4">
         {tags.map((tag) => (
           <button
             key={tag.key}
             type="button"
             onClick={() => setSelected(selected === tag.key ? null : tag.key)}
-            className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+            className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all shadow-sm ${
               colorMap[tag.key]
             } ${selected === tag.key ? 'ring-2 ring-primary ring-offset-1' : ''}`}
           >
@@ -62,7 +62,7 @@ export default function ProcedureTagBar({ tags }: ProcedureTagBarProps) {
       </div>
 
       {(selected || showAll) && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+        <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">
               {showAll ? '전체 시술/검사 환자' : tags.find((t) => t.key === selected)?.label} 목록

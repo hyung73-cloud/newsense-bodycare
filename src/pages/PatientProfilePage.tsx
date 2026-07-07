@@ -32,7 +32,11 @@ import {
   type VisitFormData,
 } from '../api/mock';
 
-export default function PatientProfilePage() {
+interface PatientProfilePageProps {
+  onLogout?: () => void;
+}
+
+export default function PatientProfilePage({ onLogout }: PatientProfilePageProps) {
   const { id } = useParams<{ id: string }>();
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<PatientProfileTab>('summary');
@@ -53,7 +57,7 @@ export default function PatientProfilePage() {
   if (!patient) {
     return (
       <div className="min-h-screen bg-surface">
-        <TopNav activeTab="manage" />
+        <TopNav activeTab="manage" onLogout={onLogout} />
         <div className="max-w-[1440px] mx-auto px-6 py-20 text-center">
           <p className="text-gray-500 mb-4">환자를 찾을 수 없습니다.</p>
           <Link to="/" className="text-primary hover:underline">
@@ -181,7 +185,7 @@ export default function PatientProfilePage() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <TopNav activeTab="manage" />
+      <TopNav activeTab="manage" onLogout={onLogout} />
 
       <main className="max-w-[1440px] mx-auto px-6 py-6 space-y-5">
         <PatientHeader patient={patient} onAddRecord={openAddModal} />

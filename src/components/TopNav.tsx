@@ -12,19 +12,20 @@ const tabs = [
 
 interface TopNavProps {
   activeTab?: 'dashboard' | 'search' | 'today' | 'manage';
+  onLogout?: () => void;
 }
 
-export default function TopNav({ activeTab }: TopNavProps) {
+export default function TopNav({ activeTab, onLogout }: TopNavProps) {
   const location = useLocation();
   const staff = getStaff();
   const isPatientPage = location.pathname.startsWith('/patient/');
   const resolvedTab = activeTab ?? (isPatientPage ? 'manage' : 'dashboard');
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
       <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center gap-6">
         <div className="flex-shrink-0">
-          <div className="text-lg font-bold text-gray-900">NewSense BodyCare</div>
+          <div className="text-lg font-bold text-gray-900 tracking-tight">NewSense BodyCare</div>
           <div className="text-xs text-gray-500">체중·건강·체형 관리차트</div>
         </div>
 
@@ -58,7 +59,8 @@ export default function TopNav({ activeTab }: TopNavProps) {
           </span>
           <button
             type="button"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap"
+            onClick={onLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap transition-colors"
           >
             <LogOut className="w-4 h-4" />
             로그아웃
