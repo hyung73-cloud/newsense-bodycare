@@ -11,6 +11,8 @@ import ChangeChart from '../components/ChangeChart';
 import ResearchPanel from '../components/ResearchPanel';
 import VisitHistoryTable from '../components/VisitHistoryTable';
 import VisitFormModal from '../components/VisitFormModal';
+import InbodyUploadModal from '../components/InbodyUploadModal';
+import { useToast } from '../context/ToastContext';
 import type { Visit } from '../types';
 import {
   getPatientById,
@@ -28,6 +30,7 @@ import {
   addVisitToday,
   updateVisit,
   hasVisitToday,
+  markLatestVisitInbodyUploaded,
   TODAY,
   type VisitFormData,
 } from '../api/mock';
@@ -37,8 +40,11 @@ export default function PatientProfilePage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<PatientProfileTab>('summary');
   const [modalOpen, setModalOpen] = useState(false);
+  const [inbodyModalOpen, setInbodyModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [editingVisit, setEditingVisit] = useState<Visit | undefined>();
+
+  const { showToast } = useToast();
 
   const bump = () => setRefreshKey((k) => k + 1);
   void refreshKey;
@@ -163,8 +169,10 @@ export default function PatientProfilePage() {
     if (modalMode === 'add') {
       addVisitToday(id, data);
       setActiveTab('records');
+      showToast('오늘 기록이 추가되었습니다.');
     } else if (editingVisit) {
       updateVisit(editingVisit.id, data);
+      showToast('기록이 수정되었습니다.');
     }
     bump();
   };
@@ -184,7 +192,11 @@ export default function PatientProfilePage() {
       <TopNav activeTab="manage" />
 
       <main className="max-w-[1440px] mx-auto px-6 py-6 space-y-5">
-        <PatientHeader patient={patient} onAddRecord={openAddModal} />
+        <PatientHeader
+          patient={patient}
+          onAddRecord={openAddModal}
+          onInbodyUpload={() => setInbodyModalOpen(true)}
+        />
 
         <PatientProfileTabs active={activeTab} onChange={setActiveTab} />
 
@@ -372,6 +384,22 @@ export default function PatientProfilePage() {
         initial={editingVisit}
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
+      />
+
+      <InbodyUploadModal
+        open={inbodyModalOpen}
+        patientName={patient.name}
+        onClose={() => setInbodyModalOpen(false)}
+        onConfirm={() => {
+          const ok = markLatestVisitInbodyUploaded(patient.id);
+          setInbodyModalOpen(false);
+          if (ok) {
+            bump();
+            showToast('인바디 업로드 완료로 처리되었습니다.');
+          } else {
+            showToast('오늘 방문 기록이 없어 인바디 상태를 변경할 수 없습니다.');
+          }
+        }}
       />
     </div>
   );

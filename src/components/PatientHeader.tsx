@@ -4,9 +4,10 @@ import type { Patient } from '../types';
 interface PatientHeaderProps {
   patient: Patient;
   onAddRecord?: () => void;
+  onInbodyUpload?: () => void;
 }
 
-export default function PatientHeader({ patient, onAddRecord }: PatientHeaderProps) {
+export default function PatientHeader({ patient, onAddRecord, onInbodyUpload }: PatientHeaderProps) {
   return (
     <div className="panel-card p-5 flex items-center justify-between">
       <div className="flex items-center gap-5">
@@ -54,6 +55,7 @@ export default function PatientHeader({ patient, onAddRecord }: PatientHeaderPro
         </button>
         <button
           type="button"
+          onClick={onInbodyUpload}
           className="btn-outline"
         >
           <Upload className="w-4 h-4" />

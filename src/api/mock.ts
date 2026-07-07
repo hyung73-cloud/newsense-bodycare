@@ -415,38 +415,7 @@ export function getTodayVisits(): (Visit & { patient: Patient; index: number })[
       patient: patients.find((p) => p.id === v.patientId)!,
     }));
 
-  // Pad to 18 for display consistency with stats (add mock entries)
-  const base = todayVisitList;
-  const extraCount = todayStats.totalVisits - base.length;
-  const extras: (Visit & { patient: Patient; index: number })[] = [];
-
-  for (let i = 0; i < extraCount; i++) {
-    const p = patients[i % patients.length];
-    const existing = base.find((v) => v.patientId === p.id);
-    if (existing) continue;
-    extras.push({
-      id: `mock-${i}`,
-      patientId: p.id,
-      date: TODAY,
-      weightKg: 65 + i,
-      waistCm: 75 + i,
-      bodyFatPct: 30,
-      skeletalMuscleKg: 22,
-      visceralLevel: 8,
-      doctorNote: '',
-      photoUploaded: true,
-      inbodyUploaded: true,
-      status: '완료' as const,
-      enteredBy: '김실장',
-      enteredAt: '2025.12.16 09:00',
-      hidden: false,
-      patient: p,
-      index: 0,
-    });
-  }
-
-  const combined = [...base, ...extras].slice(0, todayStats.totalVisits);
-  return combined.map((v, idx) => ({ ...v, index: idx + 1 }));
+  return todayVisitList.map((v, idx) => ({ ...v, index: idx + 1 }));
 }
 
 export function getCalendarDays(year: number, month: number): CalendarDay[] {
@@ -467,6 +436,10 @@ export function getPatientsByProcedure(key: string): Patient[] {
 
 export function getPatientById(id: string): Patient | undefined {
   return patients.find((p) => p.id === id);
+}
+
+export function getAllPatients(): Patient[] {
+  return [...patients];
 }
 
 export function getVisitsByPatientId(patientId: string): Visit[] {
@@ -511,6 +484,7 @@ export function hideVisit(visitId: string): void {
   if (visit) {
     visit.hidden = true;
     syncPatientStats(visit.patientId);
+    recalcTodayStats();
   }
 }
 
@@ -588,7 +562,139 @@ export function addVisitToday(patientId: string, data: VisitFormData): Visit {
   });
 
   syncPatientStats(patientId);
+  recalcTodayStats();
   return visit;
+}
+
+export interface NewPatientFormData {
+  name: string;
+  sex: import('../types').Sex;
+  birth: string;
+  heightCm: number;
+}
+
+const TODAY_INPUT_DRAFT_KEY = 'bodycare-today-input-draft-v1';
+
+export function saveTodayInputDraft(data: unknown): void {
+  localStorage.setItem(TODAY_INPUT_DRAFT_KEY, JSON.stringify(data));
+}
+
+export function loadTodayInputDraft<T>(): T | null {
+  try {
+    const raw = localStorage.getItem(TODAY_INPUT_DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearTodayInputDraft(): void {
+  localStorage.removeItem(TODAY_INPUT_DRAFT_KEY);
+}
+
+export function getNextChartNo(): string {
+  const max = patients.reduce((acc, p) => Math.max(acc, parseInt(p.chartNo, 10) || 0), 0);
+  return String(max + 1).padStart(6, '0');
+}
+
+function calcAgeFromBirth(birth: string): number {
+  const year = parseInt(birth.split('.')[0], 10);
+  if (Number.isNaN(year)) return 0;
+  return Math.max(0, 2025 - year);
+}
+
+function recalcTodayStats(): void {
+  const list = visits.filter((v) => v.date === TODAY && !v.hidden);
+  const todayDot = TODAY.replace(/-/g, '.');
+
+  todayStats.totalVisits = list.length;
+  todayStats.newPatients = patients.filter((p) => p.startDate === todayDot).length;
+  todayStats.photoUploaded = list.filter((v) => v.photoUploaded).length;
+  todayStats.inbodyUploaded = list.filter((v) => v.inbodyUploaded).length;
+  todayStats.incomplete = list.filter((v) => v.status === '미완료').length;
+
+  progressStats.total = list.length;
+  progressStats.completed = list.filter((v) => v.status === '완료').length;
+  progressStats.inProgress = list.filter((v) => v.status === '진행중').length;
+  progressStats.incomplete = list.filter((v) => v.status === '미완료').length;
+}
+
+function prependRecentMemo(patient: Patient, summary: string): void {
+  recentMemos.unshift({
+    id: `m-${Date.now()}`,
+    date: todayStats.date.split(' ')[0],
+    patientName: patient.name,
+    patientId: patient.id,
+    summary,
+  });
+  if (recentMemos.length > 10) recentMemos.pop();
+}
+
+export function createPatientWithTodayVisit(
+  patientData: NewPatientFormData,
+  visitData: VisitFormData,
+): { patient: Patient; visit: Visit } {
+  const id = `p-${Date.now()}`;
+  const todayDot = TODAY.replace(/-/g, '.');
+  const patient: Patient = {
+    id,
+    chartNo: getNextChartNo(),
+    name: patientData.name.trim(),
+    sex: patientData.sex,
+    birth: patientData.birth.trim(),
+    ageAtToday: calcAgeFromBirth(patientData.birth),
+    heightCm: patientData.heightCm,
+    startDate: todayDot,
+    totalVisits: 0,
+    lastVisitDate: TODAY,
+  };
+  patients.push(patient);
+  const visit = addVisitToday(id, {
+    ...visitData,
+    doctorNote: visitData.doctorNote || '신규 환자 등록 및 초진 기록',
+  });
+  prependRecentMemo(patient, visit.doctorNote.slice(0, 40));
+  return { patient, visit };
+}
+
+export function registerReturningPatientToday(
+  patientId: string,
+  visitData: VisitFormData,
+): Visit {
+  if (hasVisitToday(patientId)) {
+    const existing = visits.find((v) => v.patientId === patientId && v.date === TODAY && !v.hidden)!;
+    return updateVisit(existing.id, visitData)!;
+  }
+  const visit = addVisitToday(patientId, visitData);
+  const patient = getPatientById(patientId);
+  if (patient) prependRecentMemo(patient, visit.doctorNote.slice(0, 40));
+  return visit;
+}
+
+export function markLatestVisitInbodyUploaded(patientId: string): boolean {
+  const visit = getLatestVisit(patientId);
+  if (!visit || visit.date !== TODAY) return false;
+
+  visit.inbodyUploaded = true;
+  if (visit.status === '미완료') visit.status = '진행중';
+
+  let inbody = inbodyRecords.find((r) => r.visitId === visit.id);
+  if (!inbody) {
+    inbodyRecords.push({
+      visitId: visit.id,
+      weightKg: visit.weightKg,
+      skeletalMuscleKg: visit.skeletalMuscleKg,
+      bodyFatPct: visit.bodyFatPct,
+      visceralLevel: visit.visceralLevel,
+      bmrKcal: 1178,
+      abdominalFatRatio: 0.85,
+      smi: 6.1,
+      sheetImageUrl: INBODY_SHEET,
+    });
+  }
+
+  recalcTodayStats();
+  return true;
 }
 
 export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visit | undefined {
@@ -613,6 +719,7 @@ export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visi
 
   visit.enteredAt = nowFormatted();
   syncPatientStats(visit.patientId);
+  recalcTodayStats();
   return visit;
 }
 
@@ -689,3 +796,5 @@ export function getRecentPatientCardData(patientId: string) {
     bodyFatPct: visit.bodyFatPct,
   };
 }
+
+recalcTodayStats();

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   UserPlus,
@@ -16,6 +17,8 @@ import VisitCalendar from '../components/VisitCalendar';
 import ProgressDonut from '../components/ProgressDonut';
 import ProcedureTagBar from '../components/ProcedureTagBar';
 import ShortcutMenu from '../components/ShortcutMenu';
+import TodayInputModal from '../components/TodayInputModal';
+import { useToast } from '../context/ToastContext';
 import {
   getTodayStats,
   getProgressStats,
@@ -27,7 +30,12 @@ import {
 } from '../api/mock';
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
+  const { showToast } = useToast();
   const [timestamp, setTimestamp] = useState(new Date());
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [todayInputOpen, setTodayInputOpen] = useState(false);
+  void refreshKey;
 
   useEffect(() => {
     const timer = setInterval(() => setTimestamp(new Date()), 1000);
@@ -63,7 +71,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-12 gap-5 items-stretch">
           {/* 왼쪽 */}
           <div className="col-span-3 flex flex-col gap-4">
-            <StatCard />
+            <StatCard onClick={() => setTodayInputOpen(true)} />
             <div className="panel-card p-5 flex-shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="panel-title">오늘 통계</h3>
@@ -150,6 +158,16 @@ export default function DashboardPage() {
           {formatTime(timestamp)}
         </div>
       </main>
+
+      <TodayInputModal
+        open={todayInputOpen}
+        onClose={() => setTodayInputOpen(false)}
+        onSuccess={(patientId) => {
+          setRefreshKey((k) => k + 1);
+          showToast('오늘 입력이 등록되었습니다.');
+          navigate(`/patient/${patientId}`);
+        }}
+      />
     </div>
   );
 }
