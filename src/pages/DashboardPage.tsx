@@ -64,9 +64,9 @@ export default function DashboardPage() {
           {/* 왼쪽 */}
           <div className="col-span-3 flex flex-col gap-3">
             <StatCard />
-            <div className="bg-white rounded-card shadow-card p-4 flex-shrink-0">
+            <div className="panel-card p-4 flex-shrink-0">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-gray-900 text-sm">오늘 통계</h3>
+                <h3 className="panel-title">오늘 통계</h3>
                 <span className="text-[10px] text-gray-400">{stats.date}</span>
               </div>
               <div className="space-y-2">
@@ -84,9 +84,9 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div className="bg-white rounded-card shadow-card p-4 flex-1 flex flex-col min-h-0">
+            <div className="panel-card p-4 flex-1 flex flex-col min-h-0">
               <div className="flex items-center justify-between mb-2 flex-shrink-0">
-                <h3 className="font-bold text-gray-900 text-sm">최근 메모(3건)</h3>
+                <h3 className="panel-title">최근 메모(3건)</h3>
                 <button type="button" className="text-[10px] text-primary flex items-center gap-0.5 hover:underline">
                   더보기 <ChevronRight className="w-3 h-3" />
                 </button>
@@ -108,7 +108,7 @@ export default function DashboardPage() {
           {/* 가운데 */}
           <div className="col-span-6 flex flex-col gap-3">
             <div className="flex-shrink-0">
-              <h3 className="font-bold text-gray-900 text-sm mb-2">최근 등록 환자 (3명)</h3>
+              <h3 className="panel-title mb-2">최근 등록 환자 (3명)</h3>
               <div className="grid grid-cols-3 gap-3">
                 {recentPatients.map((p) => {
                   const card = getRecentPatientCardData(p.id);

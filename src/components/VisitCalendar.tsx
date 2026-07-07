@@ -50,26 +50,26 @@ export default function VisitCalendar({ initialYear = 2025, initialMonth = 12 }:
   const isSunday = (dayIndex: number) => dayIndex % 7 === 0;
 
   return (
-    <div className="bg-white rounded-card shadow-card p-3 flex-shrink-0">
+    <div className="panel-card p-3 flex-shrink-0">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-bold text-gray-900 text-sm">방문 현황 캘린더</h3>
+        <h3 className="panel-title">방문 현황 캘린더</h3>
         <button
           type="button"
           onClick={goToday}
-          className="text-[10px] text-primary border border-primary/30 rounded px-2 py-0.5 hover:bg-blue-50"
+          className="btn-ghost-sm"
         >
           오늘
         </button>
       </div>
 
       <div className="flex items-center justify-between mb-2">
-        <button type="button" onClick={prevMonth} className="p-0.5 hover:bg-gray-100 rounded">
+        <button type="button" onClick={prevMonth} className="p-1 hover:bg-gray-100 rounded-md transition-colors">
           <ChevronLeft className="w-4 h-4 text-gray-500" />
         </button>
         <span className="text-sm font-bold text-gray-900">
           {year}.{String(month).padStart(2, '0')}
         </span>
-        <button type="button" onClick={nextMonth} className="p-0.5 hover:bg-gray-100 rounded">
+        <button type="button" onClick={nextMonth} className="p-1 hover:bg-gray-100 rounded-md transition-colors">
           <ChevronRight className="w-4 h-4 text-gray-500" />
         </button>
       </div>
@@ -95,8 +95,9 @@ export default function VisitCalendar({ initialYear = 2025, initialMonth = 12 }:
           return (
             <div
               key={day}
-              className={`h-8 flex flex-col items-center justify-center rounded text-[10px] leading-tight ${
-                today ? 'bg-primary text-white font-bold' : 'hover:bg-gray-50'
+              title={data ? `${data.visitCount}명 방문` : undefined}
+              className={`h-8 flex flex-col items-center justify-center rounded-md text-[10px] leading-tight transition-colors ${
+                today ? 'bg-primary text-white font-bold shadow-sm' : 'hover:bg-gray-50'
               }`}
             >
               <span className={!today && isSunday(dayOfWeek) ? 'text-red-500' : ''}>{day}</span>

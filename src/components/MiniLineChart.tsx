@@ -14,7 +14,7 @@ export default function MiniLineChart({
   unit = '',
 }: MiniLineChartProps) {
   return (
-    <div className="bg-white rounded-card shadow-card p-4">
+    <div className="panel-card p-4">
       <h4 className="text-xs font-bold text-gray-700 mb-2">{title}</h4>
       <div className="h-24">
         <ResponsiveContainer width="100%" height="100%">
@@ -22,7 +22,8 @@ export default function MiniLineChart({
             <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
             <YAxis hide domain={['dataMin - 2', 'dataMax + 2']} />
             <Tooltip
-              contentStyle={{ fontSize: 11, borderRadius: 8 }}
+              contentStyle={{ borderRadius: 8 }}
+              wrapperClassName="chart-tooltip"
               formatter={(v: number) => [`${v}${unit}`, '']}
             />
             <Line

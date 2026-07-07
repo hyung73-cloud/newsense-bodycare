@@ -24,13 +24,13 @@ export default function ChangeChart({ data }: ChangeChartProps) {
   const [period, setPeriod] = useState('all');
 
   return (
-    <div className="bg-white rounded-card shadow-card p-5 h-full">
+    <div className="panel-card p-5 h-full">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-900 text-sm">변화 그래프</h3>
+        <h3 className="panel-title">변화 그래프</h3>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          className="text-xs border border-gray-200 rounded-lg px-2 py-1 text-gray-600"
+          className="text-xs border border-gray-300 rounded-lg px-2 py-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20"
         >
           <option value="all">전체 기간</option>
           <option value="3m">최근 3개월</option>
@@ -44,8 +44,12 @@ export default function ChangeChart({ data }: ChangeChartProps) {
             <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9CA3AF' }} />
             <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9CA3AF' }} />
             <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#9CA3AF' }} />
-            <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
-            <Legend wrapperStyle={{ fontSize: 10 }} />
+            <Tooltip
+              contentStyle={{ borderRadius: 8 }}
+              wrapperClassName="chart-tooltip"
+              labelStyle={{ color: '#111827', fontWeight: 600 }}
+            />
+            <Legend wrapperStyle={{ fontSize: 11, color: '#4B5563', paddingTop: 8 }} iconType="circle" />
             <Line yAxisId="left" type="monotone" dataKey="weight" name="체중(kg)" stroke="#2563EB" strokeWidth={2} dot={{ r: 3 }} />
             <Line yAxisId="left" type="monotone" dataKey="muscle" name="골격근(kg)" stroke="#22C55E" strokeWidth={2} dot={{ r: 3 }} />
             <Line yAxisId="right" type="monotone" dataKey="bodyFat" name="체지방(%)" stroke="#F59E0B" strokeWidth={2} dot={{ r: 3 }} />

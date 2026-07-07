@@ -16,12 +16,12 @@ interface PhotoCompareRowProps {
 export default function PhotoCompareRow({ title, slots }: PhotoCompareRowProps) {
   return (
     <div className="mb-6">
-      <div className="text-sm font-medium text-gray-700 mb-3">{title}</div>
+      <div className="text-sm font-semibold text-gray-700 mb-3 tracking-tight">{title}</div>
       <div className="grid grid-cols-3 gap-4">
         {slots.map((slot) => (
           <div key={slot.label} className="text-center">
             <div
-              className="relative rounded-lg overflow-hidden bg-gray-100 aspect-[3/4] mx-auto max-w-[180px]"
+              className="relative rounded-xl overflow-hidden bg-gray-100 aspect-[3/4] mx-auto max-w-[180px] ring-1 ring-gray-200"
             >
               {slot.image ? (
                 <img
@@ -36,7 +36,7 @@ export default function PhotoCompareRow({ title, slots }: PhotoCompareRowProps) 
               )}
               <RulerOverlay />
               <div
-                className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded ${slot.labelColor}`}
+                className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm ${slot.labelColor}`}
               >
                 {slot.label}
               </div>
@@ -45,11 +45,11 @@ export default function PhotoCompareRow({ title, slots }: PhotoCompareRowProps) 
               <div className="text-xs text-gray-400 mt-1.5">{slot.date.replace(/-/g, '.')}</div>
             )}
             {slot.image && (
-              <div className="flex justify-center gap-4 mt-1 text-xs">
-                <span>
+              <div className="inline-flex justify-center gap-4 mt-1.5 text-xs bg-gray-50 border border-gray-200 rounded-md px-3 py-1">
+                <span className="text-gray-600">
                   체중 <strong className="text-gray-900">{slot.image.weightKg}kg</strong>
                 </span>
-                <span>
+                <span className="text-gray-600">
                   허리 <strong className="text-gray-900">{slot.image.waistCm}cm</strong>
                 </span>
               </div>

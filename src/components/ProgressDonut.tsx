@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import type { ProgressStats } from '../types';
 
 interface ProgressDonutProps {
@@ -16,8 +16,8 @@ export default function ProgressDonut({ stats, className = '' }: ProgressDonutPr
   ];
 
   return (
-    <div className={`bg-white rounded-card shadow-card p-4 flex flex-col ${className}`}>
-      <h3 className="font-bold text-gray-900 text-sm mb-2">진행 현황</h3>
+    <div className={`panel-card p-4 flex flex-col ${className}`}>
+      <h3 className="panel-title mb-2">진행 현황</h3>
       <div className="relative flex-1 min-h-[120px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -34,6 +34,11 @@ export default function ProgressDonut({ stats, className = '' }: ProgressDonutPr
                 <Cell key={index} fill={COLORS[index]} />
               ))}
             </Pie>
+            <Tooltip
+              formatter={(value: number, _name, props) => [`${value}명`, props.payload?.name ?? '']}
+              contentStyle={{ borderRadius: 8 }}
+              wrapperClassName="chart-tooltip"
+            />
           </PieChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -43,14 +48,14 @@ export default function ProgressDonut({ stats, className = '' }: ProgressDonutPr
           </div>
         </div>
       </div>
-      <div className="space-y-1 mt-2">
+      <div className="space-y-1.5 mt-2">
         {data.map((item, i) => (
           <div key={item.name} className="flex items-center justify-between text-[11px]">
             <span className="flex items-center gap-1.5 text-gray-600">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i] }} />
+              <span className="w-2.5 h-2.5 rounded-full ring-1 ring-black/5" style={{ backgroundColor: COLORS[i] }} />
               {item.name}
             </span>
-            <span className="font-medium text-gray-900">
+            <span className="font-semibold text-gray-900">
               {item.value}명 ({item.pct}%)
             </span>
           </div>

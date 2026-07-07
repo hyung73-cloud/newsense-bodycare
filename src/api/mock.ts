@@ -504,7 +504,120 @@ export function getLatestInbody(patientId: string): InbodyRecord | undefined {
 
 export function hideVisit(visitId: string): void {
   const visit = visits.find((v) => v.id === visitId);
-  if (visit) visit.hidden = true;
+  if (visit) {
+    visit.hidden = true;
+    syncPatientStats(visit.patientId);
+  }
+}
+
+export interface VisitFormData {
+  weightKg: number;
+  waistCm: number;
+  bodyFatPct: number;
+  skeletalMuscleKg: number;
+  visceralLevel: number;
+  doctorNote: string;
+  status: Visit['status'];
+  photoUploaded: boolean;
+  inbodyUploaded: boolean;
+}
+
+function syncPatientStats(patientId: string): void {
+  const patient = patients.find((p) => p.id === patientId);
+  const visible = visits.filter((v) => v.patientId === patientId && !v.hidden);
+  if (!patient) return;
+  patient.totalVisits = visible.length;
+  if (visible.length > 0) {
+    const sorted = [...visible].sort((a, b) => a.date.localeCompare(b.date));
+    patient.lastVisitDate = sorted[sorted.length - 1].date;
+  }
+}
+
+function nowFormatted(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function addVisitToday(patientId: string, data: VisitFormData): Visit {
+  const id = `v-${Date.now()}`;
+  const visit: Visit = {
+    id,
+    patientId,
+    date: TODAY,
+    ...data,
+    enteredBy: staff.name,
+    enteredAt: nowFormatted(),
+    hidden: false,
+  };
+  visits.push(visit);
+
+  visitImages.push(
+    {
+      id: `img-${id}-f`,
+      visitId: id,
+      type: 'front',
+      url: PLACEHOLDER_FRONT,
+      weightKg: data.weightKg,
+      waistCm: data.waistCm,
+    },
+    {
+      id: `img-${id}-s`,
+      visitId: id,
+      type: 'side',
+      url: PLACEHOLDER_SIDE,
+      weightKg: data.weightKg,
+      waistCm: data.waistCm,
+    },
+  );
+
+  inbodyRecords.push({
+    visitId: id,
+    weightKg: data.weightKg,
+    skeletalMuscleKg: data.skeletalMuscleKg,
+    bodyFatPct: data.bodyFatPct,
+    visceralLevel: data.visceralLevel,
+    bmrKcal: 1178,
+    abdominalFatRatio: 0.85,
+    smi: 6.1,
+    sheetImageUrl: INBODY_SHEET,
+  });
+
+  syncPatientStats(patientId);
+  return visit;
+}
+
+export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visit | undefined {
+  const visit = visits.find((v) => v.id === visitId);
+  if (!visit) return undefined;
+
+  Object.assign(visit, data);
+
+  const imgs = visitImages.filter((img) => img.visitId === visitId);
+  imgs.forEach((img) => {
+    if (data.weightKg !== undefined) img.weightKg = data.weightKg;
+    if (data.waistCm !== undefined) img.waistCm = data.waistCm;
+  });
+
+  const inbody = inbodyRecords.find((r) => r.visitId === visitId);
+  if (inbody) {
+    if (data.weightKg !== undefined) inbody.weightKg = data.weightKg;
+    if (data.skeletalMuscleKg !== undefined) inbody.skeletalMuscleKg = data.skeletalMuscleKg;
+    if (data.bodyFatPct !== undefined) inbody.bodyFatPct = data.bodyFatPct;
+    if (data.visceralLevel !== undefined) inbody.visceralLevel = data.visceralLevel;
+  }
+
+  visit.enteredAt = nowFormatted();
+  syncPatientStats(visit.patientId);
+  return visit;
+}
+
+export function getVisitById(visitId: string): Visit | undefined {
+  return visits.find((v) => v.id === visitId && !v.hidden);
+}
+
+export function hasVisitToday(patientId: string): boolean {
+  return visits.some((v) => v.patientId === patientId && v.date === TODAY && !v.hidden);
 }
 
 export function searchPatients(query: string): Patient[] {

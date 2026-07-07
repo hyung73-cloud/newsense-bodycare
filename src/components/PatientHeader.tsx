@@ -3,11 +3,12 @@ import type { Patient } from '../types';
 
 interface PatientHeaderProps {
   patient: Patient;
+  onAddRecord?: () => void;
 }
 
-export default function PatientHeader({ patient }: PatientHeaderProps) {
+export default function PatientHeader({ patient, onAddRecord }: PatientHeaderProps) {
   return (
-    <div className="bg-white rounded-card shadow-card p-5 flex items-center justify-between">
+    <div className="panel-card p-5 flex items-center justify-between">
       <div className="flex items-center gap-5">
         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
           <User className="w-8 h-8 text-gray-400" />
@@ -45,14 +46,15 @@ export default function PatientHeader({ patient }: PatientHeaderProps) {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+          onClick={onAddRecord}
+          className="btn-primary"
         >
           <Plus className="w-4 h-4" />
           오늘 기록 추가
         </button>
         <button
           type="button"
-          className="flex items-center gap-2 px-4 py-2.5 bg-white text-primary border border-primary rounded-lg text-sm font-medium hover:bg-blue-50"
+          className="btn-outline"
         >
           <Upload className="w-4 h-4" />
           인바디 기록지 업로드
