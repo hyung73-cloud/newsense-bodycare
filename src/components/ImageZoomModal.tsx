@@ -9,7 +9,7 @@ export default function ImageZoomModal({ url, onClose }: ImageZoomModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div
-        className="relative max-w-2xl max-h-[90vh] bg-white rounded-card p-2"
+        className="relative max-w-2xl max-h-[90vh] panel-card shadow-elevated p-2"
         onClick={(e) => e.stopPropagation()}
       >
         <button

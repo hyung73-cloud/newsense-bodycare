@@ -95,8 +95,11 @@ export default function DashboardPage() {
                 </button>
               </div>
               <div className="space-y-2 flex-1">
-                {memos.map((m) => (
-                  <div key={m.id} className="border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                {memos.map((m, idx) => (
+                  <div
+                    key={m.id}
+                    className={`pb-2 last:pb-0 ${idx > 0 ? 'section-divider pt-2' : ''}`}
+                  >
                     <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mb-0.5">
                       <span>{m.date}</span>
                       <span className="font-medium text-gray-700">{m.patientName}</span>

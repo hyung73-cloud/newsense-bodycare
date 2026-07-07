@@ -1,4 +1,5 @@
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { chartTooltipProps } from '../styles/chartTheme';
 
 interface MiniLineChartProps {
   title: string;
@@ -15,15 +16,14 @@ export default function MiniLineChart({
 }: MiniLineChartProps) {
   return (
     <div className="panel-card p-4">
-      <h4 className="text-xs font-bold text-gray-700 mb-2">{title}</h4>
+      <h4 className="text-xs font-bold text-gray-700 mb-2 tracking-tight">{title}</h4>
       <div className="h-24">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
             <YAxis hide domain={['dataMin - 2', 'dataMax + 2']} />
             <Tooltip
-              contentStyle={{ borderRadius: 8 }}
-              wrapperClassName="chart-tooltip"
+              {...chartTooltipProps}
               formatter={(v: number) => [`${v}${unit}`, '']}
             />
             <Line

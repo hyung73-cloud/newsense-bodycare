@@ -50,8 +50,8 @@ export default function VisitCalendar({ initialYear = 2025, initialMonth = 12 }:
   const isSunday = (dayIndex: number) => dayIndex % 7 === 0;
 
   return (
-    <div className="panel-card p-3 flex-shrink-0">
-      <div className="flex items-center justify-between mb-2">
+    <div className="panel-card p-4 flex-shrink-0">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="panel-title">방문 현황 캘린더</h3>
         <button
           type="button"
@@ -102,8 +102,13 @@ export default function VisitCalendar({ initialYear = 2025, initialMonth = 12 }:
             >
               <span className={!today && isSunday(dayOfWeek) ? 'text-red-500' : ''}>{day}</span>
               {data && data.visitCount > 0 && (
-                <span className={`text-[8px] leading-none ${today ? 'text-blue-100' : 'text-gray-400'}`}>
-                  {data.visitCount}
+                <span className="flex items-center gap-0.5 mt-0.5">
+                  {data.newCount > 0 && (
+                    <span className={`w-1 h-1 rounded-full ${today ? 'bg-green-200' : 'bg-green-500'}`} />
+                  )}
+                  {data.returningCount > 0 && (
+                    <span className={`w-1 h-1 rounded-full ${today ? 'bg-blue-200' : 'bg-primary'}`} />
+                  )}
                 </span>
               )}
             </div>
@@ -111,7 +116,7 @@ export default function VisitCalendar({ initialYear = 2025, initialMonth = 12 }:
         })}
       </div>
 
-      <div className="flex items-center justify-center gap-3 mt-2 text-[9px] text-gray-500">
+      <div className="flex items-center justify-center gap-4 mt-3 text-[10px] text-gray-500">
         <span className="flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
           신규

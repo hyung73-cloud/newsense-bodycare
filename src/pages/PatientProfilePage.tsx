@@ -193,7 +193,7 @@ export default function PatientProfilePage() {
             {latestVisit ? (
               <div className="grid grid-cols-12 gap-5">
                 <div className="col-span-3 space-y-4">
-                  <h3 className="font-bold text-gray-900 text-sm">핵심 지표 (최근 방문 기준)</h3>
+                  <h3 className="section-label">핵심 지표 (최근 방문 기준)</h3>
                   {stats && (
                     <>
                       <KpiCard
@@ -267,7 +267,7 @@ export default function PatientProfilePage() {
                       <SummaryStat label="체지방률" value={`${latestVisit.bodyFatPct}%`} />
                       <SummaryStat label="골격근량" value={`${latestVisit.skeletalMuscleKg} kg`} />
                     </div>
-                    <ChangeChart data={getChangeChartData(patient.id)} />
+                    <ChangeChart data={getChangeChartData(patient.id)} variant="embedded" />
                   </div>
                 </div>
               </div>
@@ -305,18 +305,16 @@ export default function PatientProfilePage() {
                       눈금 단위: cm · 0 = 배꼽 중심 · 고정 SVG 가이드 오버레이
                     </p>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded bg-gray-500" /> 최초
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded bg-blue-500" /> 이전
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded bg-green-500" /> 최신
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <span className="legend-pill">
+                      <span className="w-2 h-2 rounded-full bg-gray-500" /> 최초
+                    </span>
+                    <span className="legend-pill">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" /> 이전
+                    </span>
+                    <span className="legend-pill">
+                      <span className="w-2 h-2 rounded-full bg-green-500" /> 최신
+                    </span>
                   </div>
                 </div>
 
@@ -336,7 +334,7 @@ export default function PatientProfilePage() {
         )}
 
         {activeTab === 'inbody' && (
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-3 gap-5 items-stretch">
             <InbodySummary records={inbodyRecords} />
             <ChangeChart data={getChangeChartData(patient.id)} />
             <ResearchPanel items={researchItems} />

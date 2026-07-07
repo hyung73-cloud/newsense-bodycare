@@ -7,7 +7,7 @@ interface StatCardProps {
 export default function StatCard({ className = '' }: StatCardProps) {
   return (
     <div
-      className={`bg-primary rounded-card p-5 text-white shadow-card cursor-pointer hover:bg-blue-700 transition-colors ${className}`}
+      className={`bg-primary rounded-card p-5 text-white shadow-elevated cursor-pointer hover:bg-blue-700 transition-colors ${className}`}
     >
       <div className="flex items-center gap-4">
         <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">

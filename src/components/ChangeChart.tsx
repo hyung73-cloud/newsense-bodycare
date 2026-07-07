@@ -9,6 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { CHART_COLORS, chartAxisTick, chartLegendStyle, chartTooltipProps } from '../styles/chartTheme';
 
 interface ChangeChartProps {
   data: {
@@ -18,15 +19,20 @@ interface ChangeChartProps {
     bodyFat: number;
     waist: number;
   }[];
+  variant?: 'card' | 'embedded';
 }
 
-export default function ChangeChart({ data }: ChangeChartProps) {
+export default function ChangeChart({ data, variant = 'card' }: ChangeChartProps) {
   const [period, setPeriod] = useState('all');
 
-  return (
-    <div className="panel-card p-5 h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="panel-title">변화 그래프</h3>
+  const content = (
+    <>
+      <div className={`flex items-center justify-between ${variant === 'card' ? 'mb-4' : 'mb-3'}`}>
+        {variant === 'card' ? (
+          <h3 className="panel-title">변화 그래프</h3>
+        ) : (
+          <h4 className="text-xs font-bold text-gray-700">변화 그래프</h4>
+        )}
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
@@ -37,26 +43,28 @@ export default function ChangeChart({ data }: ChangeChartProps) {
           <option value="6m">최근 6개월</option>
         </select>
       </div>
-      <div className="h-52">
+      <div className={variant === 'card' ? 'h-52' : 'h-48'}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9CA3AF' }} />
-            <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9CA3AF' }} />
-            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#9CA3AF' }} />
-            <Tooltip
-              contentStyle={{ borderRadius: 8 }}
-              wrapperClassName="chart-tooltip"
-              labelStyle={{ color: '#111827', fontWeight: 600 }}
-            />
-            <Legend wrapperStyle={{ fontSize: 11, color: '#4B5563', paddingTop: 8 }} iconType="circle" />
-            <Line yAxisId="left" type="monotone" dataKey="weight" name="체중(kg)" stroke="#2563EB" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="left" type="monotone" dataKey="muscle" name="골격근(kg)" stroke="#22C55E" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="right" type="monotone" dataKey="bodyFat" name="체지방(%)" stroke="#F59E0B" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="right" type="monotone" dataKey="waist" name="허리(cm)" stroke="#A855F7" strokeWidth={2} dot={{ r: 3 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
+            <XAxis dataKey="date" tick={chartAxisTick} />
+            <YAxis yAxisId="left" tick={chartAxisTick} />
+            <YAxis yAxisId="right" orientation="right" tick={chartAxisTick} />
+            <Tooltip {...chartTooltipProps} />
+            <Legend wrapperStyle={chartLegendStyle} iconType="circle" />
+            <Line yAxisId="left" type="monotone" dataKey="weight" name="체중(kg)" stroke={CHART_COLORS.weight} strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="left" type="monotone" dataKey="muscle" name="골격근(kg)" stroke={CHART_COLORS.muscle} strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="right" type="monotone" dataKey="bodyFat" name="체지방(%)" stroke={CHART_COLORS.bodyFat} strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="right" type="monotone" dataKey="waist" name="허리(cm)" stroke={CHART_COLORS.waist} strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </>
   );
+
+  if (variant === 'embedded') {
+    return <div className="border-t border-gray-100 pt-4">{content}</div>;
+  }
+
+  return <div className="panel-card p-5 h-full">{content}</div>;
 }

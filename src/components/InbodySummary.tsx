@@ -52,16 +52,16 @@ export default function InbodySummary({ records }: InbodySummaryProps) {
                 <tr className="table-head text-gray-400">
                   <th className="table-head-cell text-left">항목</th>
                   {records.map((r) => (
-                    <th key={r.date} className="text-right py-1.5 font-medium">
+                    <th key={r.date} className="table-head-cell text-right">
                       {r.date.slice(5).replace('-', '.')}
                     </th>
                   ))}
-                  <th className="text-right py-1.5 font-medium text-primary">변화</th>
+                  <th className="table-head-cell text-right text-primary">변화</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.label} className="border-t border-gray-50">
+                  <tr key={row.label} className="table-body-row">
                     <td className="py-2 text-gray-600">{row.label}</td>
                     {records.map((r) => (
                       <td key={r.date} className="py-2 text-right font-medium text-gray-900">

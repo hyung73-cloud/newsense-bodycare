@@ -20,7 +20,7 @@ export default function QuickSearch({ variant = 'card' }: QuickSearchProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="이름, 차트번호, 전화번호 검색"
-          className="w-52 pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary focus:bg-white"
+          className="w-52 pl-8 pr-3 text-xs input-field"
         />
         {query && results.length > 0 && (
           <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-100 rounded-lg shadow-lg overflow-hidden min-w-[220px]">
@@ -42,8 +42,8 @@ export default function QuickSearch({ variant = 'card' }: QuickSearchProps) {
   }
 
   return (
-    <div className="bg-white rounded-card shadow-card p-4">
-      <h3 className="font-bold text-gray-900 text-sm mb-3">빠른 검색</h3>
+    <div className="panel-card p-4">
+      <h3 className="panel-title mb-3">빠른 검색</h3>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
@@ -51,7 +51,7 @@ export default function QuickSearch({ variant = 'card' }: QuickSearchProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="이름, 차트번호, 전화번호 검색"
-          className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+          className="w-full pl-9 pr-3 py-2.5 text-sm input-field"
         />
         {query && results.length > 0 && (
           <div className="mt-2 border border-gray-100 rounded-lg overflow-hidden">
