@@ -273,8 +273,8 @@ export default function PatientProfilePage() {
                 </div>
 
                 <div className="col-span-9">
-                  <div className="panel-card p-5">
-                    <div className="flex items-center justify-between mb-4">
+                  <div className="panel-card p-5 h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-4 flex-shrink-0">
                       <div>
                         <h3 className="panel-title">체형 사진 비교 (허리 중심 8cm 범위)</h3>
                         <p className="text-xs text-gray-400 mt-1">
@@ -301,8 +301,8 @@ export default function PatientProfilePage() {
                       </div>
                     </div>
 
-                    <PhotoCompareRow title="정면" slots={frontSlots} />
-                    <PhotoCompareRow title="측면" slots={sideSlots} />
+                    <PhotoCompareRow title="정면" slots={frontSlots} grow />
+                    <PhotoCompareRow title="측면" slots={sideSlots} grow />
                   </div>
                 </div>
               </div>

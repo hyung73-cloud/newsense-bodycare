@@ -11,6 +11,7 @@ interface PhotoSlot {
 interface PhotoCompareRowProps {
   title: string;
   slots: PhotoSlot[];
+  grow?: boolean;
 }
 
 const dotColorMap: Record<string, string> = {
@@ -21,16 +22,16 @@ const dotColorMap: Record<string, string> = {
 
 const GRID_COLS = 'grid grid-cols-[64px_repeat(3,minmax(0,1fr))]';
 
-export default function PhotoCompareRow({ title, slots }: PhotoCompareRowProps) {
+export default function PhotoCompareRow({ title, slots, grow = false }: PhotoCompareRowProps) {
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-2 mb-3">
+    <div className={grow ? 'flex-1 flex flex-col min-h-0 mb-6 last:mb-0' : 'mb-6'}>
+      <div className="flex items-center gap-2 mb-3 flex-shrink-0">
         <span className="text-sm font-semibold text-gray-700 tracking-tight">{title}</span>
         <span className="text-[10px] text-gray-400">단위 : cm</span>
       </div>
 
       {/* 날짜 헤더 */}
-      <div className={`${GRID_COLS} gap-x-4 items-end mb-2`}>
+      <div className={`${GRID_COLS} gap-x-4 items-end mb-2 flex-shrink-0`}>
         <div />
         {slots.map((slot) => (
           <div key={slot.label} className="flex items-center justify-center gap-1.5 text-xs">
@@ -44,7 +45,7 @@ export default function PhotoCompareRow({ title, slots }: PhotoCompareRowProps) 
       </div>
 
       {/* 사진 */}
-      <div className={`${GRID_COLS} gap-x-4`}>
+      <div className={`${GRID_COLS} gap-x-4 ${grow ? 'flex-1 min-h-0' : ''}`}>
         <div className="flex items-center justify-center text-[10px] text-gray-400 leading-tight text-center">
           (배꼽
           <br />
@@ -53,7 +54,9 @@ export default function PhotoCompareRow({ title, slots }: PhotoCompareRowProps) 
         {slots.map((slot) => (
           <div
             key={slot.label}
-            className="relative rounded-lg overflow-hidden bg-gray-100 aspect-[2/1] ring-1 ring-gray-200 shadow-sm"
+            className={`relative rounded-lg overflow-hidden bg-gray-100 ring-1 ring-gray-200 shadow-sm ${
+              grow ? 'h-full min-h-[150px]' : 'aspect-[4/3]'
+            }`}
           >
             {slot.image ? (
               <img src={slot.image.url} alt={slot.label} className="w-full h-full object-cover" />
@@ -68,7 +71,7 @@ export default function PhotoCompareRow({ title, slots }: PhotoCompareRowProps) 
       </div>
 
       {/* 체중 / 허리둘레 표 */}
-      <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden text-sm">
+      <div className="mt-3 border border-gray-200 rounded-lg overflow-hidden text-sm flex-shrink-0">
         <div className={GRID_COLS}>
           <div className="bg-gray-50 px-2 py-2 text-xs text-gray-500 border-r border-b border-gray-200 flex items-center">
             체중
