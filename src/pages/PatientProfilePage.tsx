@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Camera, ImageUp } from 'lucide-react';
 import TopNav from '../components/TopNav';
 import PatientHeader from '../components/PatientHeader';
 import PatientProfileTabs, { type PatientProfileTab } from '../components/PatientProfileTabs';
@@ -12,8 +13,9 @@ import ResearchPanel from '../components/ResearchPanel';
 import VisitHistoryTable from '../components/VisitHistoryTable';
 import VisitFormModal from '../components/VisitFormModal';
 import InbodyUploadModal from '../components/InbodyUploadModal';
+import FileUploadButton from '../components/FileUploadButton';
 import { useToast } from '../context/ToastContext';
-import type { Visit } from '../types';
+import type { Visit, ImageType } from '../types';
 import {
   getPatientById,
   getLatestVisit,
@@ -30,7 +32,8 @@ import {
   addVisitToday,
   updateVisit,
   hasVisitToday,
-  markLatestVisitInbodyUploaded,
+  setVisitPhotoFile,
+  setInbodySheetFile,
   TODAY,
   type VisitFormData,
 } from '../api/mock';
@@ -185,6 +188,24 @@ export default function PatientProfilePage() {
 
   const handleDeleteLatest = () => {
     if (latestVisit) handleDelete(latestVisit);
+  };
+
+  const handlePhotoUpload = (type: ImageType, file: File) => {
+    if (!latestVisit) return;
+    setVisitPhotoFile(latestVisit.id, type, file);
+    bump();
+    showToast(`${type === 'front' ? '정면' : '측면'} 사진이 업로드되었습니다.`);
+  };
+
+  const handleInbodyFileUpload = (file: File) => {
+    if (!latestVisit) {
+      showToast('오늘 방문 기록이 없어 업로드할 수 없습니다.');
+      return;
+    }
+    setInbodySheetFile(latestVisit.id, file);
+    setInbodyModalOpen(false);
+    bump();
+    showToast('인바디 결과지가 업로드되었습니다.');
   };
 
   return (
@@ -363,8 +384,38 @@ export default function PatientProfilePage() {
                 <PhotoCompareRow title="정면" slots={frontSlots} />
                 <PhotoCompareRow title="측면" slots={sideSlots} />
 
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <ImageUp className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-gray-700">
+                      오늘 방문 사진 업로드
+                    </span>
+                    <span className="text-[11px] text-gray-400">
+                      ({latestVisit.date.replace(/-/g, '.')} · 최신 슬롯에 반영)
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <FileUploadButton
+                      onFile={(file) => handlePhotoUpload('front', file)}
+                      className="btn-outline text-sm"
+                    >
+                      <Camera className="w-4 h-4" />
+                      정면 사진 업로드
+                    </FileUploadButton>
+                    <FileUploadButton
+                      onFile={(file) => handlePhotoUpload('side', file)}
+                      className="btn-outline text-sm"
+                    >
+                      <Camera className="w-4 h-4" />
+                      측면 사진 업로드
+                    </FileUploadButton>
+                  </div>
+                </div>
+
                 <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-4 py-2 mt-4">
                   📷 촬영 가이드: 배꼽이 눈금자 0 위치에 오도록 서서 촬영합니다. (자동정렬 미구현 — 고정 가이드만 표시)
+                  <br />
+                  <span className="text-gray-400">※ 임시 업로드입니다. 새로고침 시 초기화됩니다.</span>
                 </p>
               </div>
             ) : (
@@ -420,16 +471,7 @@ export default function PatientProfilePage() {
         open={inbodyModalOpen}
         patientName={patient.name}
         onClose={() => setInbodyModalOpen(false)}
-        onConfirm={() => {
-          const ok = markLatestVisitInbodyUploaded(patient.id);
-          setInbodyModalOpen(false);
-          if (ok) {
-            bump();
-            showToast('인바디 업로드 완료로 처리되었습니다.');
-          } else {
-            showToast('오늘 방문 기록이 없어 인바디 상태를 변경할 수 없습니다.');
-          }
-        }}
+        onUploadFile={handleInbodyFileUpload}
       />
     </div>
   );

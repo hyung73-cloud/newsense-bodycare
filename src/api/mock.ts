@@ -1,5 +1,6 @@
 import type {
   CalendarDay,
+  ImageType,
   InbodyRecord,
   Patient,
   ProcedureTag,
@@ -705,7 +706,69 @@ export function markLatestVisitInbodyUploaded(patientId: string): boolean {
   return true;
 }
 
-export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visit | undefined {
+/* ── 브라우저 임시 업로드 (백엔드 없음, 새로고침 시 초기화) ── */
+
+const objectUrlRegistry = new Map<string, string>();
+
+function assignObjectUrl(regKey: string, file: File): string {
+  const prev = objectUrlRegistry.get(regKey);
+  if (prev) URL.revokeObjectURL(prev);
+  const url = URL.createObjectURL(file);
+  objectUrlRegistry.set(regKey, url);
+  return url;
+}
+
+export function setVisitPhotoFile(visitId: string, type: ImageType, file: File): string {
+  const url = assignObjectUrl(`photo-${visitId}-${type}`, file);
+  const visit = visits.find((v) => v.id === visitId);
+  const existing = visitImages.find((img) => img.visitId === visitId && img.type === type);
+  if (existing) {
+    existing.url = url;
+  } else {
+    visitImages.push({
+      id: `img-${visitId}-${type}-upload`,
+      visitId,
+      type,
+      url,
+      weightKg: visit?.weightKg ?? 0,
+      waistCm: visit?.waistCm ?? 0,
+    });
+  }
+  if (visit) {
+    visit.photoUploaded = true;
+    if (visit.status === '미완료') visit.status = '진행중';
+    syncPatientStats(visit.patientId);
+    recalcTodayStats();
+  }
+  return url;
+}
+
+export function setInbodySheetFile(visitId: string, file: File): string {
+  const url = assignObjectUrl(`inbody-${visitId}`, file);
+  const visit = visits.find((v) => v.id === visitId);
+  const inbody = inbodyRecords.find((r) => r.visitId === visitId);
+  if (inbody) {
+    inbody.sheetImageUrl = url;
+  } else if (visit) {
+    inbodyRecords.push({
+      visitId,
+      weightKg: visit.weightKg,
+      skeletalMuscleKg: visit.skeletalMuscleKg,
+      bodyFatPct: visit.bodyFatPct,
+      visceralLevel: visit.visceralLevel,
+      bmrKcal: 1178,
+      abdominalFatRatio: 0.85,
+      smi: 6.1,
+      sheetImageUrl: url,
+    });
+  }
+  if (visit) {
+    visit.inbodyUploaded = true;
+    if (visit.status === '미완료') visit.status = '진행중';
+    recalcTodayStats();
+  }
+  return url;
+}
   const visit = visits.find((v) => v.id === visitId);
   if (!visit) return undefined;
 
