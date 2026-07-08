@@ -1,18 +1,23 @@
-import { User, Plus, Upload } from 'lucide-react';
+import { User, Plus, Upload, Phone } from 'lucide-react';
 import type { Patient } from '../types';
 
 interface PatientHeaderProps {
   patient: Patient;
+  avatarUrl?: string;
   onAddRecord?: () => void;
   onInbodyUpload?: () => void;
 }
 
-export default function PatientHeader({ patient, onAddRecord, onInbodyUpload }: PatientHeaderProps) {
+export default function PatientHeader({ patient, avatarUrl, onAddRecord, onInbodyUpload }: PatientHeaderProps) {
   return (
     <div className="panel-card p-5 flex items-center justify-between">
       <div className="flex items-center gap-5">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-          <User className="w-8 h-8 text-gray-400" />
+        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden ring-1 ring-gray-200">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={patient.name} className="w-full h-full object-cover" />
+          ) : (
+            <User className="w-8 h-8 text-gray-400" />
+          )}
         </div>
         <div>
           <div className="text-xl font-bold text-gray-900">
@@ -23,6 +28,12 @@ export default function PatientHeader({ patient, onAddRecord, onInbodyUpload }: 
             <span>
               {patient.birth} ({patient.ageAtToday}세)
             </span>
+            {patient.phone && (
+              <span className="flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5" />
+                {patient.phone}
+              </span>
+            )}
           </div>
         </div>
         <div className="ml-6 flex items-center gap-6 text-sm">

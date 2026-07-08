@@ -194,6 +194,7 @@ export default function PatientProfilePage() {
       <main className="max-w-[1440px] mx-auto px-6 py-6 space-y-5">
         <PatientHeader
           patient={patient}
+          avatarUrl={latestVisit ? getVisitImages(latestVisit.id, 'front')?.url : undefined}
           onAddRecord={openAddModal}
           onInbodyUpload={() => setInbodyModalOpen(true)}
         />
