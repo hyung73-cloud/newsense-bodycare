@@ -204,6 +204,7 @@ export default function PatientProfilePage() {
         {activeTab === 'summary' && (
           <>
             {latestVisit ? (
+              <div className="space-y-5">
               <div className="grid grid-cols-12 gap-5">
                 <div className="col-span-3 space-y-4">
                   <h3 className="section-label">핵심 지표 (최근 방문 기준)</h3>
@@ -269,11 +270,9 @@ export default function PatientProfilePage() {
                       )}
                     </div>
                   </div>
-
-                  <InbodySummary records={inbodyRecords} />
                 </div>
 
-                <div className="col-span-9 space-y-5">
+                <div className="col-span-9">
                   <div className="panel-card p-5">
                     <div className="flex items-center justify-between mb-4">
                       <div>
@@ -305,14 +304,14 @@ export default function PatientProfilePage() {
                     <PhotoCompareRow title="정면" slots={frontSlots} />
                     <PhotoCompareRow title="측면" slots={sideSlots} />
                   </div>
-
-                  <div className="grid grid-cols-3 gap-5 items-stretch">
-                    <div className="col-span-2">
-                      <ChangeChart data={getChangeChartData(patient.id)} />
-                    </div>
-                    <ResearchPanel items={researchItems} />
-                  </div>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-5 items-stretch">
+                <InbodySummary records={inbodyRecords} />
+                <ChangeChart data={getChangeChartData(patient.id)} />
+                <ResearchPanel items={researchItems} />
+              </div>
               </div>
             ) : (
               <div className="panel-card p-12 text-center">
