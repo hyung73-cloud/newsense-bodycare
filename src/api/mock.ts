@@ -769,6 +769,8 @@ export function setInbodySheetFile(visitId: string, file: File): string {
   }
   return url;
 }
+
+export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visit | undefined {
   const visit = visits.find((v) => v.id === visitId);
   if (!visit) return undefined;
 
