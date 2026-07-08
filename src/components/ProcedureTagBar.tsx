@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Droplets, Sparkles, Scissors, Pill, TestTube, X } from 'lucide-react';
+import { Droplets, Sparkles, Scissors, Pill, TestTube, X, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { getPatientsByProcedure } from '../api/mock';
 import type { ProcedureTag } from '../types';
 
@@ -24,10 +25,34 @@ interface ProcedureTagBarProps {
 }
 
 export default function ProcedureTagBar({ tags }: ProcedureTagBarProps) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const [drawerKey, setDrawerKey] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
-  const selectedPatients = selected ? getPatientsByProcedure(selected) : [];
+  const openTag = (key: string) => {
+    setShowAll(false);
+    setDrawerKey(key);
+  };
+
+  const openAll = () => {
+    setDrawerKey(null);
+    setShowAll(true);
+  };
+
+  const closeDrawer = () => {
+    setDrawerKey(null);
+    setShowAll(false);
+  };
+
+  const drawerOpen = drawerKey !== null || showAll;
+  const activeTag = tags.find((t) => t.key === drawerKey);
+
+  const drawerPatients = showAll
+    ? tags
+        .flatMap((t) => getPatientsByProcedure(t.key).map((p) => ({ patient: p, tagLabel: t.label })))
+        .filter((entry, i, arr) => arr.findIndex((x) => x.patient.id === entry.patient.id) === i)
+    : drawerKey
+      ? getPatientsByProcedure(drawerKey).map((p) => ({ patient: p, tagLabel: activeTag?.label ?? '' }))
+      : [];
 
   return (
     <div className="panel-card p-5">
@@ -35,7 +60,7 @@ export default function ProcedureTagBar({ tags }: ProcedureTagBarProps) {
         <h3 className="panel-title">시술/검사 환자 관리</h3>
         <button
           type="button"
-          onClick={() => setShowAll(!showAll)}
+          onClick={openAll}
           className="text-sm text-primary hover:underline font-medium"
         >
           전체 시술/검사 환자 보기 →
@@ -47,10 +72,10 @@ export default function ProcedureTagBar({ tags }: ProcedureTagBarProps) {
           <button
             key={tag.key}
             type="button"
-            onClick={() => setSelected(selected === tag.key ? null : tag.key)}
-            className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all shadow-sm ${
+            onClick={() => openTag(tag.key)}
+            className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all shadow-sm hover:-translate-y-0.5 ${
               colorMap[tag.key]
-            } ${selected === tag.key ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+            } ${drawerKey === tag.key ? 'ring-2 ring-primary ring-offset-1' : ''}`}
           >
             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
               {tag.count}
@@ -61,37 +86,53 @@ export default function ProcedureTagBar({ tags }: ProcedureTagBarProps) {
         ))}
       </div>
 
-      {(selected || showAll) && (
-        <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">
-              {showAll ? '전체 시술/검사 환자' : tags.find((t) => t.key === selected)?.label} 목록
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setSelected(null);
-                setShowAll(false);
-              }}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(showAll
-              ? tags.flatMap((t) => getPatientsByProcedure(t.key))
-              : selectedPatients
-            )
-              .filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i)
-              .map((p) => (
-                <span
-                  key={p.id}
-                  className="text-xs bg-white border border-gray-200 rounded-full px-3 py-1"
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end" onClick={closeDrawer}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div
+            className="relative w-full max-w-md h-full bg-white shadow-elevated flex flex-col animate-in slide-in-from-right"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="font-bold text-gray-900">
+                  {showAll ? '전체 시술/검사 환자' : activeTag?.label}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">{drawerPatients.length}명</p>
+              </div>
+              <button type="button" onClick={closeDrawer} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {drawerPatients.map(({ patient, tagLabel }) => (
+                <Link
+                  key={patient.id}
+                  to={`/patient/${patient.id}`}
+                  onClick={closeDrawer}
+                  className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
                 >
-                  {p.name} ({p.chartNo})
-                </span>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {patient.name}
+                      <span className="text-xs text-gray-400 ml-2">
+                        {patient.sex}/{patient.ageAtToday}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {patient.chartNo}
+                      {patient.phone && ` · ${patient.phone}`}
+                      {showAll && tagLabel && ` · ${tagLabel}`}
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-300" />
+                </Link>
               ))}
+              {drawerPatients.length === 0 && (
+                <p className="text-center text-xs text-gray-400 py-8">해당 환자가 없습니다.</p>
+              )}
+            </div>
           </div>
         </div>
       )}

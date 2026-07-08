@@ -16,8 +16,9 @@ import TodayVisitTable from '../components/TodayVisitTable';
 import VisitCalendar from '../components/VisitCalendar';
 import ProgressDonut from '../components/ProgressDonut';
 import ProcedureTagBar from '../components/ProcedureTagBar';
-import ShortcutMenu from '../components/ShortcutMenu';
+import ShortcutMenu, { type ShortcutKey } from '../components/ShortcutMenu';
 import TodayInputModal from '../components/TodayInputModal';
+import VisitListDrawer from '../components/VisitListDrawer';
 import { useToast } from '../context/ToastContext';
 import {
   getTodayStats,
@@ -27,7 +28,11 @@ import {
   getTodayVisits,
   getProcedureTags,
   getRecentPatientCardData,
+  getTodayVisitsIncomplete,
+  getTodayVisitsMissingInbody,
+  getTodayVisitsMissingPhoto,
 } from '../api/mock';
+import type { Patient, Visit } from '../types';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -35,12 +40,42 @@ export default function DashboardPage() {
   const [timestamp, setTimestamp] = useState(new Date());
   const [refreshKey, setRefreshKey] = useState(0);
   const [todayInputOpen, setTodayInputOpen] = useState(false);
+  const [drawer, setDrawer] = useState<{ title: string; visits: (Visit & { patient: Patient })[] } | null>(null);
   void refreshKey;
 
   useEffect(() => {
     const timer = setInterval(() => setTimestamp(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleShortcut = (key: ShortcutKey) => {
+    switch (key) {
+      case 'search': {
+        const el = document.getElementById('nav-quicksearch') as HTMLInputElement | null;
+        el?.focus();
+        break;
+      }
+      case 'newPatient':
+        setTodayInputOpen(true);
+        break;
+      case 'todayLog':
+        document.getElementById('today-visit-table')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        break;
+      case 'incomplete':
+        setDrawer({ title: '미완료 환자', visits: getTodayVisitsIncomplete() });
+        break;
+      case 'missingInbody':
+        setDrawer({ title: '인바디 미업로드', visits: getTodayVisitsMissingInbody() });
+        break;
+      case 'missingPhoto':
+        setDrawer({ title: '사진 미업로드', visits: getTodayVisitsMissingPhoto() });
+        break;
+      case 'print':
+        showToast('보고서 출력 준비 중입니다.');
+        window.setTimeout(() => window.print(), 300);
+        break;
+    }
+  };
 
   const stats = getTodayStats();
   const progress = getProgressStats();
@@ -140,7 +175,9 @@ export default function DashboardPage() {
                 })}
               </div>
             </div>
-            <TodayVisitTable visits={todayVisits} className="flex-1 min-h-0" />
+            <div id="today-visit-table" className="flex-1 min-h-0 flex">
+              <TodayVisitTable visits={todayVisits} className="flex-1 min-h-0" />
+            </div>
           </div>
 
           {/* 오른쪽 */}
@@ -151,7 +188,7 @@ export default function DashboardPage() {
         </div>
 
         <ProcedureTagBar tags={procedures} />
-        <ShortcutMenu />
+        <ShortcutMenu onAction={handleShortcut} />
 
         <div className="flex items-center justify-end gap-2 text-xs text-gray-400">
           <RefreshCw className="w-3 h-3" />
@@ -167,6 +204,13 @@ export default function DashboardPage() {
           showToast('오늘 입력이 등록되었습니다.');
           navigate(`/patient/${patientId}`);
         }}
+      />
+
+      <VisitListDrawer
+        open={drawer !== null}
+        title={drawer?.title ?? ''}
+        visits={drawer?.visits ?? []}
+        onClose={() => setDrawer(null)}
       />
     </div>
   );

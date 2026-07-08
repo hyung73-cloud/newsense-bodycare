@@ -16,6 +16,7 @@ export default function QuickSearch({ variant = 'card' }: QuickSearchProps) {
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
         <input
+          id="nav-quicksearch"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -23,7 +24,7 @@ export default function QuickSearch({ variant = 'card' }: QuickSearchProps) {
           className="w-52 pl-8 pr-3 text-xs input-field"
         />
         {query && results.length > 0 && (
-          <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-100 rounded-lg shadow-lg overflow-hidden min-w-[220px]">
+          <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-100 rounded-lg shadow-lg overflow-hidden min-w-[240px]">
             {results.map((p) => (
               <Link
                 key={p.id}
@@ -33,8 +34,14 @@ export default function QuickSearch({ variant = 'card' }: QuickSearchProps) {
               >
                 <span className="font-medium">{p.name}</span>
                 <span className="text-gray-400 ml-2 text-xs">{p.chartNo}</span>
+                {p.phone && <span className="text-gray-400 ml-2 text-xs">{p.phone}</span>}
               </Link>
             ))}
+          </div>
+        )}
+        {query && results.length === 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-100 rounded-lg shadow-lg px-3 py-3 min-w-[240px] text-xs text-gray-400 text-center">
+            검색 결과가 없습니다.
           </div>
         )}
       </div>

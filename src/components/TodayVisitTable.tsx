@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Camera, FileText, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { Patient, Visit } from '../types';
+import type { Patient, Visit, VisitStatus } from '../types';
 
 const INITIAL_LIMIT = 5;
 
@@ -10,20 +10,61 @@ interface TodayVisitRow extends Visit {
   index: number;
 }
 
+type FilterKey = 'all' | VisitStatus;
+
 interface TodayVisitTableProps {
   visits: TodayVisitRow[];
   className?: string;
 }
 
+const filters: { key: FilterKey; label: string }[] = [
+  { key: 'all', label: '전체' },
+  { key: '완료', label: '완료' },
+  { key: '진행중', label: '진행중' },
+  { key: '미완료', label: '미완료' },
+];
+
 export default function TodayVisitTable({ visits, className = '' }: TodayVisitTableProps) {
   const [expanded, setExpanded] = useState(false);
-  const hasMore = visits.length > INITIAL_LIMIT;
-  const visibleVisits = expanded ? visits : visits.slice(0, INITIAL_LIMIT);
+  const [filter, setFilter] = useState<FilterKey>('all');
+
+  const counts: Record<FilterKey, number> = {
+    all: visits.length,
+    완료: visits.filter((v) => v.status === '완료').length,
+    진행중: visits.filter((v) => v.status === '진행중').length,
+    미완료: visits.filter((v) => v.status === '미완료').length,
+  };
+
+  const filtered = filter === 'all' ? visits : visits.filter((v) => v.status === filter);
+  const hasMore = filtered.length > INITIAL_LIMIT;
+  const visibleVisits = expanded ? filtered : filtered.slice(0, INITIAL_LIMIT);
 
   return (
     <div className={`panel-card overflow-hidden flex flex-col ${className}`}>
-      <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
+      <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0 flex items-center justify-between gap-3 flex-wrap">
         <h3 className="panel-title">오늘 방문 환자 리스트</h3>
+        <div className="flex items-center gap-1">
+          {filters.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => {
+                setFilter(f.key);
+                setExpanded(false);
+              }}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                filter === f.key
+                  ? 'bg-primary text-white'
+                  : 'text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              {f.label}
+              <span className={`ml-1 ${filter === f.key ? 'text-blue-100' : 'text-gray-400'}`}>
+                {counts[f.key]}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
       <div className="flex-1 overflow-x-auto">
         <table className="w-full text-sm">
@@ -43,9 +84,9 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
             </tr>
           </thead>
           <tbody>
-            {visibleVisits.map((v) => (
+            {visibleVisits.map((v, idx) => (
               <tr key={v.id} className="table-body-row">
-                <td className="px-3 py-2.5 text-gray-600">{v.index}</td>
+                <td className="px-3 py-2.5 text-gray-600">{idx + 1}</td>
                 <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{v.date.replace(/-/g, '.')}</td>
                 <td className="px-3 py-2.5 text-gray-600">{v.patient.chartNo}</td>
                 <td className="px-3 py-2.5 font-medium text-gray-900">{v.patient.name}</td>
@@ -84,15 +125,19 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
                   )}
                 </td>
                 <td className="px-3 py-2.5 text-center">
-                  <Link
-                    to={`/patient/${v.patient.id}`}
-                    className="btn-ghost-sm"
-                  >
+                  <Link to={`/patient/${v.patient.id}`} className="btn-ghost-sm">
                     보기
                   </Link>
                 </td>
               </tr>
             ))}
+            {visibleVisits.length === 0 && (
+              <tr>
+                <td colSpan={11} className="px-3 py-8 text-center text-xs text-gray-400">
+                  해당 상태의 방문 기록이 없습니다.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -103,7 +148,7 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
             onClick={() => setExpanded(!expanded)}
             className="text-xs text-primary hover:underline inline-flex items-center gap-0.5"
           >
-            {expanded ? '접기' : `더보기 (${visits.length - INITIAL_LIMIT}명)`}
+            {expanded ? '접기' : `더보기 (${filtered.length - INITIAL_LIMIT}명)`}
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
           </button>
         </div>

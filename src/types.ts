@@ -13,6 +13,7 @@ export interface Patient {
   startDate: string;
   totalVisits: number;
   lastVisitDate: string;
+  phone?: string;
 }
 
 export interface Visit {

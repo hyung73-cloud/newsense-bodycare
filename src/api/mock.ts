@@ -35,6 +35,7 @@ export const patients: Patient[] = [
     startDate: '2025.11.25',
     totalVisits: 3,
     lastVisitDate: '2025.12.16',
+    phone: '010-1234-5678',
   },
   {
     id: 'p2',
@@ -47,6 +48,7 @@ export const patients: Patient[] = [
     startDate: '2025.12.10',
     totalVisits: 2,
     lastVisitDate: '2025.12.16',
+    phone: '010-2222-3456',
   },
   {
     id: 'p3',
@@ -59,6 +61,7 @@ export const patients: Patient[] = [
     startDate: '2025.12.14',
     totalVisits: 1,
     lastVisitDate: '2025.12.16',
+    phone: '010-3333-7890',
   },
   {
     id: 'p4',
@@ -71,6 +74,7 @@ export const patients: Patient[] = [
     startDate: '2025.10.05',
     totalVisits: 8,
     lastVisitDate: '2025.12.16',
+    phone: '010-4444-1234',
   },
   {
     id: 'p5',
@@ -83,6 +87,7 @@ export const patients: Patient[] = [
     startDate: '2025.12.16',
     totalVisits: 1,
     lastVisitDate: '2025.12.16',
+    phone: '010-5555-9876',
   },
   {
     id: 'p6',
@@ -95,6 +100,7 @@ export const patients: Patient[] = [
     startDate: '2025.09.01',
     totalVisits: 12,
     lastVisitDate: '2025.12.16',
+    phone: '010-6666-4321',
   },
 ];
 
@@ -571,6 +577,7 @@ export interface NewPatientFormData {
   sex: import('../types').Sex;
   birth: string;
   heightCm: number;
+  phone?: string;
 }
 
 const TODAY_INPUT_DRAFT_KEY = 'bodycare-today-input-draft-v1';
@@ -647,6 +654,7 @@ export function createPatientWithTodayVisit(
     startDate: todayDot,
     totalVisits: 0,
     lastVisitDate: TODAY,
+    phone: patientData.phone?.trim() || undefined,
   };
   patients.push(patient);
   const visit = addVisitToday(id, {
@@ -734,12 +742,27 @@ export function hasVisitToday(patientId: string): boolean {
 export function searchPatients(query: string): Patient[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  return patients.filter(
-    (p) =>
-      p.name.toLowerCase().includes(q) ||
-      p.chartNo.includes(q) ||
-      p.birth.includes(q),
-  );
+  const digitsOnly = q.replace(/\D/g, '');
+  return patients.filter((p) => {
+    const nameMatch = p.name.toLowerCase().includes(q);
+    const chartMatch = p.chartNo.includes(q);
+    const birthMatch = p.birth.includes(q);
+    const phoneDigits = (p.phone ?? '').replace(/\D/g, '');
+    const phoneMatch = digitsOnly.length > 0 && phoneDigits.includes(digitsOnly);
+    return nameMatch || chartMatch || birthMatch || phoneMatch;
+  });
+}
+
+export function getTodayVisitsMissingPhoto(): (Visit & { patient: Patient })[] {
+  return getTodayVisits().filter((v) => !v.photoUploaded);
+}
+
+export function getTodayVisitsMissingInbody(): (Visit & { patient: Patient })[] {
+  return getTodayVisits().filter((v) => !v.inbodyUploaded);
+}
+
+export function getTodayVisitsIncomplete(): (Visit & { patient: Patient })[] {
+  return getTodayVisits().filter((v) => v.status !== '완료');
 }
 
 export function getPatientVisitStats(patientId: string, visit: Visit) {

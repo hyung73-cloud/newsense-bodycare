@@ -33,6 +33,7 @@ const defaultPatient: NewPatientFormData = {
   sex: '여',
   birth: '',
   heightCm: 165,
+  phone: '',
 };
 
 const defaultVisit: VisitFormData = {
@@ -157,11 +158,14 @@ export default function TodayInputModal({ open, onClose, onSuccess }: TodayInput
               <Field label="키 (cm)">
                 <input type="number" value={patientForm.heightCm} onChange={(e) => setPatientForm((p) => ({ ...p, heightCm: Number(e.target.value) }))} className="input-field" required />
               </Field>
+              <Field label="전화번호">
+                <input value={patientForm.phone ?? ''} onChange={(e) => setPatientForm((p) => ({ ...p, phone: e.target.value }))} className="input-field" placeholder="010-0000-0000" />
+              </Field>
             </div>
           ) : (
             <div className="space-y-3">
               <Field label="환자 검색">
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="input-field" placeholder="이름 또는 차트번호" />
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="input-field" placeholder="이름, 차트번호, 전화 끝자리" />
               </Field>
               <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
                 {results.map((p) => (
