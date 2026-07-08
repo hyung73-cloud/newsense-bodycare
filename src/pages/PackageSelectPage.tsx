@@ -14,11 +14,13 @@ import {
   Sparkles,
   Syringe,
   Waves,
-  MessageCircle,
   ChevronLeft,
   ChevronRight,
   X,
   Gem,
+  Ticket,
+  UserPlus,
+  Printer,
 } from 'lucide-react';
 
 /* ── 데이터 ── */
@@ -179,7 +181,10 @@ export default function PackageSelectPage() {
   const [procSelections, setProcSelections] = useState<ProcSelection[]>([]);
   const [focusedSelection, setFocusedSelection] = useState<FocusedSelection | null>(null);
   const [selectedPlus, setSelectedPlus] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [patientModalOpen, setPatientModalOpen] = useState(false);
+  const [patientName, setPatientName] = useState('');
+  const [chartNo, setChartNo] = useState('');
+  const [issued, setIssued] = useState(false);
 
   const level = LEVELS.find((l) => l.key === selectedLevel) ?? null;
   const isPremium = selectedLevel === 'premium';
@@ -194,6 +199,44 @@ export default function PackageSelectPage() {
       total: (level?.price ?? 0) + procTotal + pTotal,
     };
   }, [level, procSelections, focusedSelection, plusOption]);
+
+  // 발급될 티켓(시술권) 목록 구성
+  const tickets = useMemo(() => {
+    const list: { label: string; sub?: string; price: number; kind: 'level' | 'proc' | 'focused' | 'plus' }[] = [];
+    if (level) list.push({ label: `${level.name} · ${level.subtitle}`, sub: '월 구독', price: level.price, kind: 'level' });
+    procSelections.forEach((p) => {
+      const areaText = p.areas && p.areas.length > 0 ? ` · ${p.areas.join(', ')}` : '';
+      list.push({ label: `${p.name} ${p.freq}회권${areaText}`, sub: '시술권', price: p.price, kind: 'proc' });
+    });
+    if (focusedSelection) list.push({ label: focusedSelection.name, sub: '집중시술권', price: focusedSelection.price, kind: 'focused' });
+    if (plusOption) list.push({ label: `${plusOption.name} 충전권`, sub: 'Plus 충전', price: plusOption.price, kind: 'plus' });
+    return list;
+  }, [level, procSelections, focusedSelection, plusOption]);
+
+  const openPatientModal = () => {
+    setPatientName('');
+    setChartNo('');
+    setPatientModalOpen(true);
+  };
+
+  const confirmPatient = () => {
+    if (!patientName.trim() || !chartNo.trim()) return;
+    setPatientModalOpen(false);
+    setIssued(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const resetAll = () => {
+    setIssued(false);
+    setStep(1);
+    setSelectedLevel(null);
+    setProcSelections([]);
+    setFocusedSelection(null);
+    setSelectedPlus(null);
+    setPatientName('');
+    setChartNo('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const isProcSelected = (key: string) => procSelections.some((p) => p.key === key);
   const getProcFreq = (key: string): '1' | '3' | null => {
@@ -264,6 +307,74 @@ export default function PackageSelectPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4">
+        {issued ? (
+          /* ── 티켓(시술권) 발급 결과 ── */
+          <div className="py-6 animate-in fade-in duration-300">
+            <div className="text-center mb-5">
+              <div className="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
+                <Ticket className="w-7 h-7" />
+              </div>
+              <h1 className="text-xl font-extrabold text-gray-900">패키지 등록 완료</h1>
+              <p className="text-sm text-gray-500 mt-1">아래 상품(시술권)이 발급되었습니다.</p>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              {/* 환자 정보 */}
+              <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] text-gray-400">환자</div>
+                  <div className="font-bold text-gray-900">{patientName}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[11px] text-gray-400">차트번호</div>
+                  <div className="font-bold text-gray-900">{chartNo}</div>
+                </div>
+              </div>
+
+              {/* 티켓 목록 */}
+              <ul className="divide-y divide-gray-50">
+                {tickets.map((t, i) => (
+                  <li key={i} className="px-5 py-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                        <Ticket className="w-4 h-4" />
+                      </span>
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">{t.label}</div>
+                        {t.sub && <div className="text-[11px] text-gray-400">{t.sub}</div>}
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-gray-800">{won(t.price)}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* 합계 */}
+              <div className="px-5 py-4 bg-primary/5 flex items-center justify-between">
+                <span className="font-bold text-gray-900">합계 ({tickets.length}건)</span>
+                <span className="text-xl font-extrabold text-primary">{won(total)}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-5">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex-1 flex items-center justify-center gap-2 border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50"
+              >
+                <Printer className="w-4 h-4" /> 인쇄
+              </button>
+              <button
+                type="button"
+                onClick={resetAll}
+                className="flex-1 flex items-center justify-center gap-2 bg-primary text-white font-bold py-3 rounded-xl hover:bg-blue-700"
+              >
+                새 패키지 등록
+              </button>
+            </div>
+          </div>
+        ) : (
+        <>
         {/* 스텝 인디케이터 */}
         <div className="py-5">
           <div className="flex items-center">
@@ -602,12 +713,12 @@ export default function PackageSelectPage() {
 
             <button
               type="button"
-              onClick={() => setSubmitted(true)}
+              onClick={openPatientModal}
               disabled={!level}
               className="hidden md:flex w-full items-center justify-center gap-2 bg-primary hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-3.5 rounded-xl transition-colors"
             >
-              <MessageCircle className="w-5 h-5" />
-              상담 신청하기
+              <UserPlus className="w-5 h-5" />
+              패키지 등록하기
             </button>
           </div>
         )}
@@ -623,9 +734,12 @@ export default function PackageSelectPage() {
             </button>
           )}
         </div>
+        </>
+        )}
       </main>
 
       {/* 모바일 하단 고정 바 */}
+      {!issued && (
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs text-gray-500">{step === 1 ? '월 관리비' : '예상 합계'}</span>
@@ -642,50 +756,52 @@ export default function PackageSelectPage() {
               다음 <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
-            <button type="button" onClick={() => setSubmitted(true)} disabled={!level} className="flex-1 flex items-center justify-center gap-2 bg-primary text-white font-bold py-3 rounded-xl disabled:bg-gray-300">
-              <MessageCircle className="w-5 h-5" /> 상담 신청하기
+            <button type="button" onClick={openPatientModal} disabled={!level} className="flex-1 flex items-center justify-center gap-2 bg-primary text-white font-bold py-3 rounded-xl disabled:bg-gray-300">
+              <UserPlus className="w-5 h-5" /> 패키지 등록하기
             </button>
           )}
         </div>
       </div>
+      )}
 
-      {/* 상담 신청 완료 모달 */}
-      {submitted && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSubmitted(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={() => setSubmitted(false)} className="ml-auto block text-gray-400 hover:text-gray-600">
-              <X className="w-5 h-5" />
-            </button>
-            <div className="w-14 h-14 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-3">
-              <Check className="w-7 h-7" />
+      {/* 환자 정보 입력 모달 */}
+      {patientModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setPatientModalOpen(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">환자 정보 입력</h3>
+              <button type="button" onClick={() => setPatientModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <h3 className="text-lg font-bold text-gray-900">상담 신청이 접수되었습니다</h3>
-            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-              선택하신 내용을 바탕으로
-              <br />담당자가 상담을 도와드리겠습니다.
-            </p>
-            <div className="mt-4 bg-gray-50 rounded-xl p-4 text-left text-sm space-y-1.5">
-              <div className="flex justify-between">
-                <span className="text-gray-500">관리 레벨</span>
-                <span className="font-medium">{level ? `${level.name} · ${level.subtitle}` : '미선택'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">추가 시술</span>
-                <span className="font-medium">{procSelections.length + (focusedSelection ? 1 : 0)}개</span>
-              </div>
-              {plusOption && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Plus</span>
-                  <span className="font-medium">{plusOption.name}</span>
-                </div>
-              )}
-              <div className="flex justify-between pt-1 border-t border-gray-200">
-                <span className="text-gray-500">예상 합계</span>
-                <span className="font-bold text-primary">{won(total)}</span>
-              </div>
-            </div>
-            <button type="button" onClick={() => setSubmitted(false)} className="mt-5 w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-blue-700">
-              확인
+            <p className="text-xs text-gray-500 mb-4">티켓(시술권) 발급을 위해 환자 정보를 입력해주세요.</p>
+
+            <label className="block text-xs font-bold text-gray-600 mb-1">환자 이름</label>
+            <input
+              type="text"
+              value={patientName}
+              onChange={(e) => setPatientName(e.target.value)}
+              placeholder="예) 김뉴센"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            />
+
+            <label className="block text-xs font-bold text-gray-600 mb-1">차트번호</label>
+            <input
+              type="text"
+              value={chartNo}
+              onChange={(e) => setChartNo(e.target.value)}
+              placeholder="예) 000125"
+              onKeyDown={(e) => e.key === 'Enter' && confirmPatient()}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm mb-5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            />
+
+            <button
+              type="button"
+              onClick={confirmPatient}
+              disabled={!patientName.trim() || !chartNo.trim()}
+              className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              확인 · 티켓 발급
             </button>
           </div>
         </div>
