@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut, Settings } from 'lucide-react';
+import { LogOut, Settings, Package } from 'lucide-react';
 import { getStaff } from '../api/mock';
 import { useAuth } from '../context/AuthContext';
 import QuickSearch from './QuickSearch';
@@ -58,6 +58,14 @@ export default function TopNav({ activeTab }: TopNavProps) {
           <span className="text-sm text-gray-600 whitespace-nowrap">
             직원 : <span className="font-medium text-gray-900">{staff.name}</span>
           </span>
+          <Link
+            to="/package"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary border border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 whitespace-nowrap transition-colors"
+            title="패키지 선택 페이지"
+          >
+            <Package className="w-4 h-4" />
+            패키지
+          </Link>
           <Link
             to="/settings/admins"
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap transition-colors"

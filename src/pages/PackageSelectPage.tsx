@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Activity,
   ClipboardCheck,
@@ -144,13 +145,15 @@ export default function PackageSelectPage() {
       {/* 상단바 */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-            <Activity className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="font-bold text-gray-900 leading-tight">NewSense BodyCare</div>
-            <div className="text-[11px] text-gray-500 leading-tight">체중 · 건강 · 체형 통합관리 프로그램</div>
-          </div>
+          <Link to="/" className="flex items-center gap-2.5 group" title="홈으로 이동">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
+              <Activity className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors">NewSense BodyCare</div>
+              <div className="text-[11px] text-gray-500 leading-tight">체중 · 건강 · 체형 통합관리 프로그램</div>
+            </div>
+          </Link>
         </div>
       </header>
 
