@@ -1050,20 +1050,38 @@ function replaceArray<T>(target: T[], next: T[]): void {
 
 let initPromise: Promise<void> | null = null;
 
+/** 로드 실패로 mock(샘플) 데이터를 표시 중인지 여부. true면 쓰기를 막아 DB 오염 방지. */
+let dataLoadFailed = false;
+
+/** Supabase 로드 실패 여부 (실패 시 앱은 편집을 막고 재시도 화면을 보여준다). */
+export function hasDataLoadError(): boolean {
+  return dataLoadFailed;
+}
+
 async function doInit(): Promise<void> {
   if (!isSupabaseEnabled) return;
 
-  const loaded = await loadAllFromSupabase();
-  if (loaded === null) {
-    // DB가 비어있음(또는 로드 실패) → 현재 샘플 데이터를 그대로 시드
+  const result = await loadAllFromSupabase();
+
+  if (result.status === 'empty') {
+    // DB가 확실히 비어있을 때만 최초 샘플 시드
     await seedToSupabase({ patients, visits, visitImages, inbodyRecords });
-  } else {
-    replaceArray(patients, loaded.patients);
-    replaceArray(visits, loaded.visits);
-    replaceArray(visitImages, loaded.visitImages);
-    replaceArray(inbodyRecords, loaded.inbodyRecords);
+    recalcTodayStats();
+    return;
   }
-  recalcTodayStats();
+
+  if (result.status === 'loaded') {
+    replaceArray(patients, result.data.patients);
+    replaceArray(visits, result.data.visits);
+    replaceArray(visitImages, result.data.visitImages);
+    replaceArray(inbodyRecords, result.data.inbodyRecords);
+    recalcTodayStats();
+    return;
+  }
+
+  // status === 'error': 로드 실패.
+  // ⚠️ 절대 시드/덮어쓰기 하지 않는다. 이후 쓰기도 막아 실데이터 오염을 방지.
+  dataLoadFailed = true;
 }
 
 /** 앱 시작 시 1회 호출. 동시 호출 시 같은 로드 Promise를 공유한다. */

@@ -203,12 +203,23 @@ export interface LoadedData {
 }
 
 /**
- * Supabase에서 전체 데이터를 읽는다.
- * - 환자 0명이면 null(=최초 실행, 시드 필요)을 반환.
- * - 오류 시에도 null 반환(호출부에서 mock 유지).
+ * 로드 결과를 3가지로 구분한다.
+ * - loaded: 정상적으로 데이터를 읽음
+ * - empty: 쿼리는 성공했으나 환자가 0명 (최초 실행 → 시드 대상)
+ * - error: 쿼리 자체가 실패 (⚠️ 절대 시드/덮어쓰기 하면 안 됨)
  */
-export async function loadAllFromSupabase(): Promise<LoadedData | null> {
-  if (!isSupabaseEnabled || !supabase) return null;
+export type LoadResult =
+  | { status: 'loaded'; data: LoadedData }
+  | { status: 'empty' }
+  | { status: 'error' };
+
+/**
+ * Supabase에서 전체 데이터를 읽는다.
+ * 중요: 실패(error)와 빈 DB(empty)를 반드시 구분한다.
+ *       실패를 빈 DB로 오인해 시드하면 실제 데이터를 덮어쓰는 사고가 난다.
+ */
+export async function loadAllFromSupabase(): Promise<LoadResult> {
+  if (!isSupabaseEnabled || !supabase) return { status: 'error' };
   try {
     const [pRes, vRes, iRes, bRes] = await Promise.all([
       supabase.from('patients').select('*'),
@@ -223,17 +234,20 @@ export async function loadAllFromSupabase(): Promise<LoadedData | null> {
     if (bRes.error) throw bRes.error;
 
     const patients = (pRes.data as PatientRow[]).map(rowToPatient);
-    if (patients.length === 0) return null;
+    if (patients.length === 0) return { status: 'empty' };
 
     return {
-      patients,
-      visits: (vRes.data as VisitRow[]).map(rowToVisit),
-      visitImages: (iRes.data as VisitImageRow[]).map(rowToImage),
-      inbodyRecords: (bRes.data as InbodyRow[]).map(rowToInbody),
+      status: 'loaded',
+      data: {
+        patients,
+        visits: (vRes.data as VisitRow[]).map(rowToVisit),
+        visitImages: (iRes.data as VisitImageRow[]).map(rowToImage),
+        inbodyRecords: (bRes.data as InbodyRow[]).map(rowToInbody),
+      },
     };
   } catch (err) {
-    console.error('[supabase] 데이터 로드 실패, mock 데이터로 대체합니다.', err);
-    return null;
+    console.error('[supabase] 데이터 로드 실패 — 시드/덮어쓰기를 하지 않습니다.', err);
+    return { status: 'error' };
   }
 }
 
