@@ -6,9 +6,9 @@ import QuickSearch from './QuickSearch';
 
 const tabs = [
   { label: '대시보드', path: '/', key: 'dashboard' },
-  { label: '환자검색', path: '#', key: 'search' },
-  { label: '오늘입력', path: '#', key: 'today' },
-  { label: '환자관리', path: '#', key: 'manage', activeOnPatient: true },
+  { label: '환자검색', path: '/?action=search', key: 'search' },
+  { label: '오늘입력', path: '/?action=today', key: 'today' },
+  { label: '환자관리', path: '/?action=manage', key: 'manage', activeOnPatient: true },
 ];
 
 interface TopNavProps {
@@ -39,7 +39,7 @@ export default function TopNav({ activeTab }: TopNavProps) {
               return (
                 <Link
                   key={tab.key}
-                  to={tab.path === '#' ? location.pathname : tab.path}
+                  to={tab.path}
                   className={`text-sm font-medium pb-1 border-b-2 transition-colors whitespace-nowrap ${
                     isActive
                       ? 'text-primary border-primary'

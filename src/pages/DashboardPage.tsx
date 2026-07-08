@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Users,
   UserPlus,
@@ -36,6 +36,7 @@ import type { Patient, Visit } from '../types';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { showToast } = useToast();
   const [timestamp, setTimestamp] = useState(new Date());
   const [refreshKey, setRefreshKey] = useState(0);
@@ -47,6 +48,23 @@ export default function DashboardPage() {
     const timer = setInterval(() => setTimestamp(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (!action) return;
+    if (action === 'search') {
+      window.setTimeout(() => {
+        (document.getElementById('nav-quicksearch') as HTMLInputElement | null)?.focus();
+      }, 100);
+    } else if (action === 'today') {
+      setTodayInputOpen(true);
+    } else if (action === 'manage') {
+      window.setTimeout(() => {
+        document.getElementById('today-visit-table')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const handleShortcut = (key: ShortcutKey) => {
     switch (key) {
