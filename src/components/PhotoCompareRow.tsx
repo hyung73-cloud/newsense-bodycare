@@ -55,7 +55,7 @@ export default function PhotoCompareRow({ title, slots, grow = false }: PhotoCom
           <div
             key={slot.label}
             className={`relative rounded-lg overflow-hidden bg-gray-100 ring-1 ring-gray-200 shadow-sm ${
-              grow ? 'h-full min-h-[150px]' : 'aspect-[4/3]'
+              grow ? 'h-full min-h-[130px]' : 'aspect-[3/2]'
             }`}
           >
             {slot.image ? (

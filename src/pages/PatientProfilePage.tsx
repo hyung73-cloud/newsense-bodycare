@@ -206,7 +206,7 @@ export default function PatientProfilePage() {
             {latestVisit ? (
               <div className="space-y-5">
               <div className="grid grid-cols-12 gap-5">
-                <div className="col-span-3 space-y-4">
+                <div className="col-span-3 flex flex-col gap-4">
                   <h3 className="section-label">핵심 지표 (최근 방문 기준)</h3>
                   {stats && (
                     <>
@@ -256,7 +256,7 @@ export default function PatientProfilePage() {
                     unit="cm"
                   />
 
-                  <div className="panel-card p-4">
+                  <div className="panel-card p-4 flex-1">
                     <h4 className="text-xs font-bold text-gray-700 mb-3">의사 메모 (최근)</h4>
                     <div className="space-y-3">
                       {getDoctorMemos(patient.id, 3).map((m) => (
