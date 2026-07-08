@@ -13,15 +13,15 @@ import {
   Droplets,
   Sparkles,
   Syringe,
-  Pill,
-  FlaskConical,
   Waves,
-  Dumbbell,
   MessageCircle,
   ChevronLeft,
   ChevronRight,
   X,
+  Gem,
 } from 'lucide-react';
+
+/* ── 데이터 ── */
 
 interface Level {
   key: string;
@@ -36,11 +36,31 @@ interface Level {
   features: string[];
 }
 
-interface Procedure {
+interface ProcedureOption {
+  key: string;
+  name: string;
+  price1: number;
+  price3: number;
+  icon: typeof Droplets;
+  hasAreaSelect?: boolean;
+}
+
+interface ProcedureCategory {
+  key: string;
+  title: string;
+  items: ProcedureOption[];
+}
+
+interface FocusedOption {
   key: string;
   name: string;
   price: number;
-  icon: typeof Droplets;
+}
+
+interface PlusOption {
+  key: string;
+  name: string;
+  price: number;
 }
 
 const LEVELS: Level[] = [
@@ -49,59 +69,76 @@ const LEVELS: Level[] = [
     badge: 'LEVEL 1',
     name: 'Basic',
     subtitle: '체중관리',
-    price: 49000,
+    price: 29000,
     color: 'text-green-600',
     ring: 'ring-green-500 border-green-500',
     chip: 'bg-green-50 text-green-700',
     icon: Scale,
-    features: ['체중 측정', '의사 상담', '맞춤 처방', '기본 생활 습관 가이드'],
+    features: ['인바디', '맞춤처방', '생활습관 가이드', '씨앤유 처방'],
   },
   {
     key: 'standard',
     badge: 'LEVEL 2',
     name: 'Standard',
     subtitle: '건강관리',
-    price: 89000,
+    price: 49000,
     color: 'text-blue-600',
     ring: 'ring-blue-500 border-blue-500',
     chip: 'bg-blue-50 text-blue-700',
     icon: HeartPulse,
-    features: [
-      '체중 측정 · 의사 상담',
-      '맞춤 처방',
-      '인바디 분석 (체지방률 · 골격근량 · 내장지방레벨)',
-      '생활 습관 가이드',
-    ],
+    features: ['Basic 전체 포함', '허리둘레 측정', '체형사진', '당화혈색소 검사'],
   },
   {
     key: 'premium',
     badge: 'LEVEL 3',
     name: 'Premium',
     subtitle: '체형관리',
-    price: 129000,
+    price: 69000,
     color: 'text-purple-600',
     ring: 'ring-purple-500 border-purple-500',
     chip: 'bg-purple-50 text-purple-700',
     icon: Camera,
-    features: [
-      'Standard 전체 포함',
-      '인바디 분석 (체지방률 · 골격근량 · 내장지방레벨)',
-      '체형 사진 기록 (정면 · 측면 비교)',
-      '변화 그래프 & 리포트',
+    features: ['Standard 전체 포함', '카복시 관리', '체형기록', '변화 리포트'],
+  },
+];
+
+const PROCEDURE_CATEGORIES: ProcedureCategory[] = [
+  {
+    key: 'circulation',
+    title: '순환 · 회복',
+    items: [
+      { key: 'arginine', name: '아르기닌 수액', price1: 70000, price3: 200000, icon: Droplets },
+      { key: 'vlipo', name: '브이리포', price1: 80000, price3: 200000, icon: Waves },
+      { key: 'syneson', name: '시네손', price1: 50000, price3: 130000, icon: Sparkles },
+    ],
+  },
+  {
+    key: 'fat',
+    title: '지방분해',
+    items: [
+      { key: 'hpl-abdomen', name: '복부 HPL', price1: 150000, price3: 400000, icon: Syringe },
+      { key: 'hpl-partial', name: '부분 HPL', price1: 60000, price3: 150000, icon: Syringe, hasAreaSelect: true },
     ],
   },
 ];
 
-const PROCEDURES: Procedure[] = [
-  { key: 'arginine', name: '아르기닌 수액', price: 50000, icon: Droplets },
-  { key: 'carboxy', name: '카복시 테라피', price: 70000, icon: Sparkles },
-  { key: 'hpl', name: '뿌부링 HPL', price: 150000, icon: Waves },
-  { key: 'lipo', name: '리포뷸', price: 100000, icon: Syringe },
-  { key: 'synergy', name: '시너쥰', price: 80000, icon: Dumbbell },
-  { key: 'beautyrope', name: '뷰티로프', price: 200000, icon: Activity },
-  { key: 'cnu', name: '씨앤유 처방', price: 60000, icon: Pill },
-  { key: 'hba1c', name: '당화혈색소 검사', price: 30000, icon: FlaskConical },
+const PARTIAL_AREAS = ['팔뚝', '등', '옆가슴', '부유방'];
+
+const FOCUSED_OPTIONS: FocusedOption[] = [
+  { key: 'carboxy-1', name: '카복시 1회', price: 30000 },
+  { key: 'carboxy-4', name: '카복시 4회', price: 100000 },
+  { key: 'carboxy-unlimited', name: '카복시 무제한(월)', price: 150000 },
+  { key: 'lipoderm', name: '리포덤', price: 50000 },
+  { key: 'lipoderm-hpl', name: 'HPL 동시 시술 시 리포덤', price: 30000 },
 ];
+
+const PLUS_OPTIONS: PlusOption[] = [
+  { key: 'plus-20', name: 'Plus 20', price: 200000 },
+  { key: 'plus-50', name: 'Plus 50', price: 500000 },
+  { key: 'plus-90', name: 'Plus 90', price: 900000 },
+];
+
+const PLUS_USABLE = ['보톡스', '필러', '레이저', '피부관리', '비만시술', '리프팅', '탄력관리', '색소관리'];
 
 const FEATURES = [
   { icon: ClipboardCheck, title: '정확한 측정', desc: '인바디 · 허리둘레 · 체형사진' },
@@ -112,30 +149,86 @@ const FEATURES = [
 
 const STEPS = [
   { n: 1, label: '레벨 선택' },
-  { n: 2, label: '시술 선택' },
-  { n: 3, label: '확인 & 신청' },
+  { n: 2, label: '시술 추가' },
+  { n: 3, label: 'Plus & 확인' },
 ];
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
+/* ── 선택 상태 타입 ── */
+
+interface ProcSelection {
+  key: string;
+  name: string;
+  freq: '1' | '3';
+  price: number;
+  areas?: string[];
+}
+
+interface FocusedSelection {
+  key: string;
+  name: string;
+  price: number;
+}
+
+/* ── 컴포넌트 ── */
+
 export default function PackageSelectPage() {
   const [step, setStep] = useState(1);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-  const [selectedProcedures, setSelectedProcedures] = useState<string[]>([]);
+  const [procSelections, setProcSelections] = useState<ProcSelection[]>([]);
+  const [focusedSelection, setFocusedSelection] = useState<FocusedSelection | null>(null);
+  const [selectedPlus, setSelectedPlus] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const level = LEVELS.find((l) => l.key === selectedLevel) ?? null;
-  const chosenProcedures = PROCEDURES.filter((p) => selectedProcedures.includes(p.key));
+  const isPremium = selectedLevel === 'premium';
+  const plusOption = PLUS_OPTIONS.find((p) => p.key === selectedPlus) ?? null;
 
-  const { procedureTotal, total } = useMemo(() => {
-    const procTotal = chosenProcedures.reduce((sum, p) => sum + p.price, 0);
-    return { procedureTotal: procTotal, total: (level?.price ?? 0) + procTotal };
-  }, [level, chosenProcedures]);
+  const { procedureTotal, plusTotal, total } = useMemo(() => {
+    const procTotal = procSelections.reduce((s, p) => s + p.price, 0) + (focusedSelection?.price ?? 0);
+    const pTotal = plusOption?.price ?? 0;
+    return {
+      procedureTotal: procTotal,
+      plusTotal: pTotal,
+      total: (level?.price ?? 0) + procTotal + pTotal,
+    };
+  }, [level, procSelections, focusedSelection, plusOption]);
 
-  const toggleProcedure = (key: string) => {
-    setSelectedProcedures((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+  const isProcSelected = (key: string) => procSelections.some((p) => p.key === key);
+  const getProcFreq = (key: string): '1' | '3' | null => {
+    const found = procSelections.find((p) => p.key === key);
+    return found ? found.freq : null;
+  };
+  const getProcAreas = (key: string): string[] => {
+    return procSelections.find((p) => p.key === key)?.areas ?? [];
+  };
+
+  const toggleProcedure = (item: ProcedureOption, freq: '1' | '3') => {
+    setProcSelections((prev) => {
+      const existing = prev.find((p) => p.key === item.key);
+      if (existing && existing.freq === freq) {
+        return prev.filter((p) => p.key !== item.key);
+      }
+      const price = freq === '1' ? item.price1 : item.price3;
+      const filtered = prev.filter((p) => p.key !== item.key);
+      return [...filtered, { key: item.key, name: item.name, freq, price, areas: existing?.areas }];
+    });
+  };
+
+  const toggleArea = (procKey: string, area: string) => {
+    setProcSelections((prev) =>
+      prev.map((p) => {
+        if (p.key !== procKey) return p;
+        const areas = p.areas ?? [];
+        const next = areas.includes(area) ? areas.filter((a) => a !== area) : [...areas, area];
+        return { ...p, areas: next };
+      }),
     );
+  };
+
+  const toggleFocused = (opt: FocusedOption) => {
+    setFocusedSelection((prev) => (prev?.key === opt.key ? null : { key: opt.key, name: opt.name, price: opt.price }));
   };
 
   const goNext = () => {
@@ -147,11 +240,15 @@ export default function PackageSelectPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleLevelSelect = (key: string) => {
+    setSelectedLevel(key);
+    if (key !== 'premium') setSelectedPlus(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-28 md:pb-12">
-      {/* 상단바 */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-20">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2.5">
+        <div className="max-w-2xl mx-auto px-4 py-3">
           <Link to="/" className="flex items-center gap-2.5 group" title="홈으로 이동">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
               <Activity className="w-5 h-5" />
@@ -178,20 +275,12 @@ export default function PackageSelectPage() {
                   <div className="flex flex-col items-center">
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                        done
-                          ? 'bg-primary text-white'
-                          : active
-                            ? 'bg-primary text-white ring-4 ring-primary/20'
-                            : 'bg-gray-200 text-gray-400'
+                        done ? 'bg-primary text-white' : active ? 'bg-primary text-white ring-4 ring-primary/20' : 'bg-gray-200 text-gray-400'
                       }`}
                     >
                       {done ? <Check className="w-4 h-4" /> : s.n}
                     </div>
-                    <span
-                      className={`text-[11px] mt-1 whitespace-nowrap ${
-                        active ? 'text-primary font-bold' : 'text-gray-400'
-                      }`}
-                    >
+                    <span className={`text-[11px] mt-1 whitespace-nowrap ${active ? 'text-primary font-bold' : 'text-gray-400'}`}>
                       {s.label}
                     </span>
                   </div>
@@ -204,7 +293,7 @@ export default function PackageSelectPage() {
           </div>
         </div>
 
-        {/* STEP 1: 레벨 선택 */}
+        {/* ── STEP 1: 레벨 선택 ── */}
         {step === 1 && (
           <div className="animate-in fade-in duration-300">
             <section className="text-center mb-6">
@@ -227,9 +316,7 @@ export default function PackageSelectPage() {
             </section>
 
             <h2 className="text-lg font-bold text-gray-900">관리 레벨을 선택하세요</h2>
-            <p className="text-xs text-gray-500 mt-1 mb-4">
-              1단계입니다. 체계적인 3단계 관리 프로그램 중 하나를 골라주세요.
-            </p>
+            <p className="text-xs text-gray-500 mt-1 mb-4">월 관리비에 포함되는 항목을 확인하고 선택해주세요.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {LEVELS.map((lv) => {
@@ -238,15 +325,13 @@ export default function PackageSelectPage() {
                   <button
                     key={lv.key}
                     type="button"
-                    onClick={() => setSelectedLevel(lv.key)}
+                    onClick={() => handleLevelSelect(lv.key)}
                     className={`text-left bg-white rounded-2xl border p-5 transition-all shadow-sm ${
                       active ? `ring-2 ${lv.ring}` : 'border-gray-100 hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${lv.chip}`}>
-                        {lv.badge}
-                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${lv.chip}`}>{lv.badge}</span>
                       <lv.icon className={`w-6 h-6 ${lv.color}`} />
                     </div>
                     <div className="flex items-baseline gap-2">
@@ -266,11 +351,7 @@ export default function PackageSelectPage() {
                         <div className="text-[11px] text-gray-400">월 관리비</div>
                         <span className={`text-lg font-extrabold ${lv.color}`}>{won(lv.price)}</span>
                       </div>
-                      <span
-                        className={`w-7 h-7 rounded-full flex items-center justify-center border-2 ${
-                          active ? 'border-primary bg-primary' : 'border-gray-300'
-                        }`}
-                      >
+                      <span className={`w-7 h-7 rounded-full flex items-center justify-center border-2 ${active ? 'border-primary bg-primary' : 'border-gray-300'}`}>
                         {active && <Check className="w-4 h-4 text-white" />}
                       </span>
                     </div>
@@ -281,114 +362,241 @@ export default function PackageSelectPage() {
           </div>
         )}
 
-        {/* STEP 2: 시술 선택 */}
+        {/* ── STEP 2: 시술 추가 ── */}
         {step === 2 && (
-          <div className="animate-in fade-in duration-300">
-            <h2 className="text-lg font-bold text-gray-900">
-              원하는 시술을 선택하세요 <span className="text-xs font-normal text-gray-400">(선택 사항)</span>
-            </h2>
-            <p className="text-xs text-gray-500 mt-1 mb-4">
-              2단계입니다. 원하는 시술만 체크하면 아래 예상 금액에 자동으로 더해집니다.
-            </p>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {PROCEDURES.map((p) => {
-                const checked = selectedProcedures.includes(p.key);
-                return (
-                  <button
-                    key={p.key}
-                    type="button"
-                    onClick={() => toggleProcedure(p.key)}
-                    className={`relative text-left bg-white rounded-2xl border p-4 transition-all ${
-                      checked ? 'border-primary ring-2 ring-primary/30' : 'border-gray-100 hover:border-gray-300'
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-3 right-3 w-5 h-5 rounded-md flex items-center justify-center border ${
-                        checked ? 'bg-primary border-primary text-white' : 'border-gray-300 text-transparent'
-                      }`}
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </div>
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${
-                        checked ? 'bg-primary/10 text-primary' : 'bg-gray-100 text-gray-400'
-                      }`}
-                    >
-                      <p.icon className="w-5 h-5" />
-                    </div>
-                    <div className="text-sm font-semibold text-gray-800 leading-tight">{p.name}</div>
-                    <div className="text-xs text-gray-400 mt-1">{won(p.price)}</div>
-                  </button>
-                );
-              })}
+          <div className="animate-in fade-in duration-300 space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">필요한 시술을 추가하세요</h2>
+              <p className="text-xs text-gray-500 mt-1">원하는 시술과 횟수를 선택하세요. (선택 사항)</p>
             </div>
 
-            <div className="mt-4 bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between">
-              <span className="text-sm text-gray-500">선택한 시술 {chosenProcedures.length}개 · 추가 비용</span>
+            {PROCEDURE_CATEGORIES.map((cat) => (
+              <div key={cat.key} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                  <h3 className="text-sm font-bold text-gray-800">{cat.title}</h3>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {cat.items.map((item) => {
+                    const selected = isProcSelected(item.key);
+                    const freq = getProcFreq(item.key);
+                    const areas = getProcAreas(item.key);
+                    return (
+                      <div key={item.key} className={`p-4 ${selected ? 'bg-primary/5' : ''}`}>
+                        <div className="flex items-center gap-3 mb-3">
+                          <item.icon className={`w-5 h-5 ${selected ? 'text-primary' : 'text-gray-400'}`} />
+                          <span className="text-sm font-semibold text-gray-900">{item.name}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleProcedure(item, '1')}
+                            className={`py-2.5 px-3 rounded-xl border text-sm transition-all ${
+                              freq === '1' ? 'border-primary bg-primary text-white font-bold' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="text-[11px] opacity-80">1회</div>
+                            <div className="font-bold">{won(item.price1)}</div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleProcedure(item, '3')}
+                            className={`py-2.5 px-3 rounded-xl border text-sm transition-all ${
+                              freq === '3' ? 'border-primary bg-primary text-white font-bold' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="text-[11px] opacity-80">3회</div>
+                            <div className="font-bold">{won(item.price3)}</div>
+                          </button>
+                        </div>
+                        {item.hasAreaSelect && selected && (
+                          <div className="mt-3">
+                            <div className="text-[11px] text-gray-500 mb-2">부분 선택 (동일 가격)</div>
+                            <div className="flex flex-wrap gap-2">
+                              {PARTIAL_AREAS.map((area) => (
+                                <button
+                                  key={area}
+                                  type="button"
+                                  onClick={() => toggleArea(item.key, area)}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                                    areas.includes(area) ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                                  }`}
+                                >
+                                  {area}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {/* 집중시술관리 */}
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                <h3 className="text-sm font-bold text-gray-800">집중시술관리</h3>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {FOCUSED_OPTIONS.map((opt) => {
+                  const active = focusedSelection?.key === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => toggleFocused(opt)}
+                      className={`w-full flex items-center justify-between px-4 py-3.5 text-left transition-colors ${active ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
+                    >
+                      <span className="flex items-center gap-3">
+                        <span className={`w-5 h-5 rounded-md flex items-center justify-center border ${active ? 'bg-primary border-primary text-white' : 'border-gray-300'}`}>
+                          {active && <Check className="w-3.5 h-3.5" />}
+                        </span>
+                        <span className={`text-sm ${active ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>{opt.name}</span>
+                      </span>
+                      <span className={`text-sm font-bold ${active ? 'text-primary' : 'text-gray-600'}`}>{won(opt.price)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between">
+              <span className="text-sm text-gray-500">추가 시술 비용</span>
               <span className="font-bold text-gray-900">{won(procedureTotal)}</span>
             </div>
-            <p className="text-[11px] text-gray-400 mt-2">
-              ※ 시술은 선택 사항이며, 의사 상담 후 개인 상태에 맞게 권장됩니다. 표시 금액은 예시입니다.
-            </p>
           </div>
         )}
 
-        {/* STEP 3: 확인 & 신청 */}
+        {/* ── STEP 3: Plus & 확인 ── */}
         {step === 3 && (
-          <div className="animate-in fade-in duration-300">
-            <h2 className="text-lg font-bold text-gray-900">선택 내용을 확인하세요</h2>
-            <p className="text-xs text-gray-500 mt-1 mb-4">
-              3단계입니다. 예상 월 관리비를 확인하고 상담을 신청하세요.
-            </p>
+          <div className="animate-in fade-in duration-300 space-y-6">
+            {/* Plus 프로그램 (Premium만) */}
+            {isPremium ? (
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Gem className="w-5 h-5 text-amber-600" />
+                  Plus 프로그램
+                </h2>
+                <p className="text-xs text-gray-500 mt-1 mb-4">원하는 만큼 충전하여 다양한 시술에 사용하세요.</p>
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              {/* 레벨 */}
-              <div className="p-5 border-b border-gray-100">
-                <div className="text-xs font-bold text-gray-400 mb-2">관리 레벨</div>
-                {level ? (
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <level.icon className={`w-5 h-5 ${level.color}`} />
-                      <span className="font-bold text-gray-900">
-                        {level.name} <span className="text-gray-500 font-medium">· {level.subtitle}</span>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {PLUS_OPTIONS.map((opt) => {
+                    const active = selectedPlus === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => setSelectedPlus(active ? null : opt.key)}
+                        className={`text-center rounded-2xl border p-4 transition-all ${
+                          active ? 'border-amber-500 ring-2 ring-amber-500/30 bg-amber-50' : 'border-gray-100 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="text-xs font-bold text-amber-700 mb-1">{opt.name}</div>
+                        <div className={`text-lg font-extrabold ${active ? 'text-amber-700' : 'text-gray-900'}`}>{won(opt.price)}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-100 p-4">
+                  <div className="text-xs font-bold text-gray-500 mb-2">사용 가능 시술</div>
+                  <div className="flex flex-wrap gap-2">
+                    {PLUS_USABLE.map((item) => (
+                      <span key={item} className="text-xs bg-gray-50 text-gray-600 border border-gray-200 rounded-full px-2.5 py-1">
+                        {item}
                       </span>
-                    </span>
-                    <span className="font-bold text-gray-900">{won(level.price)}</span>
-                  </div>
-                ) : (
-                  <p className="text-sm text-red-500">레벨이 선택되지 않았습니다.</p>
-                )}
-              </div>
-
-              {/* 시술 */}
-              <div className="p-5 border-b border-gray-100">
-                <div className="text-xs font-bold text-gray-400 mb-2">추가 시술 ({chosenProcedures.length}개)</div>
-                {chosenProcedures.length > 0 ? (
-                  <ul className="space-y-2">
-                    {chosenProcedures.map((p) => (
-                      <li key={p.key} className="flex items-center justify-between text-sm">
-                        <span className="flex items-center gap-2 text-gray-700">
-                          <p.icon className="w-4 h-4 text-gray-400" />
-                          {p.name}
-                        </span>
-                        <span className="text-gray-700">{won(p.price)}</span>
-                      </li>
                     ))}
-                    <li className="flex items-center justify-between text-sm pt-2 border-t border-gray-50">
-                      <span className="text-gray-400">시술 소계</span>
-                      <span className="font-medium text-gray-800">{won(procedureTotal)}</span>
-                    </li>
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-400">선택한 추가 시술이 없습니다.</p>
-                )}
+                  </div>
+                </div>
               </div>
+            ) : (
+              <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <p className="text-sm text-gray-500">
+                  Plus 프로그램은 <strong className="text-purple-600">Premium 체형관리</strong> 구독 시 이용 가능합니다.
+                </p>
+              </div>
+            )}
 
-              {/* 합계 */}
-              <div className="p-5 bg-primary/5 flex items-center justify-between">
-                <span className="font-bold text-gray-900">예상 월 관리비</span>
-                <span className="text-2xl font-extrabold text-primary">{won(total)}</span>
+            {/* 최종 확인 */}
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">선택 내용 확인</h2>
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-gray-100">
+                  <div className="text-xs font-bold text-gray-400 mb-2">관리 레벨 (월)</div>
+                  {level ? (
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <level.icon className={`w-5 h-5 ${level.color}`} />
+                        <span className="font-bold text-gray-900">{level.name} · {level.subtitle}</span>
+                      </span>
+                      <span className="font-bold">{won(level.price)}</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-red-500">미선택</p>
+                  )}
+                </div>
+
+                {procSelections.length > 0 && (
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="text-xs font-bold text-gray-400 mb-2">추가 시술</div>
+                    <ul className="space-y-1.5">
+                      {procSelections.map((p) => (
+                        <li key={p.key} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-700">
+                            {p.name} ({p.freq}회)
+                            {p.areas && p.areas.length > 0 && <span className="text-gray-400 ml-1">· {p.areas.join(', ')}</span>}
+                          </span>
+                          <span className="text-gray-700">{won(p.price)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {focusedSelection && (
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="text-xs font-bold text-gray-400 mb-2">집중시술</div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">{focusedSelection.name}</span>
+                      <span className="text-gray-700">{won(focusedSelection.price)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {plusOption && (
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="text-xs font-bold text-gray-400 mb-2">Plus 프로그램</div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">{plusOption.name}</span>
+                      <span className="text-gray-700">{won(plusOption.price)}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-4 bg-primary/5">
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-gray-500">월 관리비</span>
+                    <span>{won(level?.price ?? 0)}</span>
+                  </div>
+                  {procedureTotal > 0 && (
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="text-gray-500">추가 시술</span>
+                      <span>{won(procedureTotal)}</span>
+                    </div>
+                  )}
+                  {plusTotal > 0 && (
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="text-gray-500">Plus 충전</span>
+                      <span>{won(plusTotal)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between pt-2 border-t border-primary/10 mt-2">
+                    <span className="font-bold text-gray-900">예상 합계</span>
+                    <span className="text-xl font-extrabold text-primary">{won(total)}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -396,7 +604,7 @@ export default function PackageSelectPage() {
               type="button"
               onClick={() => setSubmitted(true)}
               disabled={!level}
-              className="mt-5 w-full hidden md:flex items-center justify-center gap-2 bg-primary hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-3.5 rounded-xl transition-colors"
+              className="hidden md:flex w-full items-center justify-center gap-2 bg-primary hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-3.5 rounded-xl transition-colors"
             >
               <MessageCircle className="w-5 h-5" />
               상담 신청하기
@@ -404,26 +612,14 @@ export default function PackageSelectPage() {
           </div>
         )}
 
-        {/* 데스크탑 하단 내비게이션 */}
+        {/* 데스크탑 내비게이션 */}
         <div className="hidden md:flex items-center justify-between mt-6">
-          <button
-            type="button"
-            onClick={goPrev}
-            disabled={step === 1}
-            className="flex items-center gap-1 px-5 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            이전
+          <button type="button" onClick={goPrev} disabled={step === 1} className="flex items-center gap-1 px-5 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+            <ChevronLeft className="w-4 h-4" /> 이전
           </button>
           {step < 3 && (
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={step === 1 && !level}
-              className="flex items-center gap-1 px-6 py-2.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-              다음
-              <ChevronRight className="w-4 h-4" />
+            <button type="button" onClick={goNext} disabled={step === 1 && !level} className="flex items-center gap-1 px-6 py-2.5 text-sm font-bold text-white bg-primary rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+              다음 <ChevronRight className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -432,60 +628,32 @@ export default function PackageSelectPage() {
       {/* 모바일 하단 고정 바 */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-500">
-            {step === 1 ? '월 관리비' : '예상 월 관리비'}
-          </span>
+          <span className="text-xs text-gray-500">{step === 1 ? '월 관리비' : '예상 합계'}</span>
           <span className="text-lg font-extrabold text-primary">{won(total)}</span>
         </div>
         <div className="flex items-center gap-2">
           {step > 1 && (
-            <button
-              type="button"
-              onClick={goPrev}
-              className="flex items-center justify-center gap-1 px-4 py-3 text-sm font-medium text-gray-600 border border-gray-300 rounded-xl"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              이전
+            <button type="button" onClick={goPrev} className="flex items-center justify-center gap-1 px-4 py-3 text-sm font-medium text-gray-600 border border-gray-300 rounded-xl">
+              <ChevronLeft className="w-4 h-4" /> 이전
             </button>
           )}
           {step < 3 ? (
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={step === 1 && !level}
-              className="flex-1 flex items-center justify-center gap-1 bg-primary text-white font-bold py-3 rounded-xl disabled:bg-gray-300"
-            >
-              다음
-              <ChevronRight className="w-4 h-4" />
+            <button type="button" onClick={goNext} disabled={step === 1 && !level} className="flex-1 flex items-center justify-center gap-1 bg-primary text-white font-bold py-3 rounded-xl disabled:bg-gray-300">
+              다음 <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={() => setSubmitted(true)}
-              disabled={!level}
-              className="flex-1 flex items-center justify-center gap-2 bg-primary text-white font-bold py-3 rounded-xl disabled:bg-gray-300"
-            >
-              <MessageCircle className="w-5 h-5" />
-              상담 신청하기
+            <button type="button" onClick={() => setSubmitted(true)} disabled={!level} className="flex-1 flex items-center justify-center gap-2 bg-primary text-white font-bold py-3 rounded-xl disabled:bg-gray-300">
+              <MessageCircle className="w-5 h-5" /> 상담 신청하기
             </button>
           )}
         </div>
       </div>
 
+      {/* 상담 신청 완료 모달 */}
       {submitted && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setSubmitted(false)}
-        >
-          <div
-            className="bg-white rounded-2xl w-full max-w-sm p-6 text-center shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setSubmitted(false)}
-              className="ml-auto block text-gray-400 hover:text-gray-600"
-            >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSubmitted(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={() => setSubmitted(false)} className="ml-auto block text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
             <div className="w-14 h-14 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-3">
@@ -494,32 +662,29 @@ export default function PackageSelectPage() {
             <h3 className="text-lg font-bold text-gray-900">상담 신청이 접수되었습니다</h3>
             <p className="text-sm text-gray-500 mt-2 leading-relaxed">
               선택하신 내용을 바탕으로
-              <br />
-              담당자가 상담을 도와드리겠습니다.
+              <br />담당자가 상담을 도와드리겠습니다.
             </p>
-
             <div className="mt-4 bg-gray-50 rounded-xl p-4 text-left text-sm space-y-1.5">
               <div className="flex justify-between">
                 <span className="text-gray-500">관리 레벨</span>
-                <span className="font-medium text-gray-800">
-                  {level ? `${level.name} · ${level.subtitle}` : '미선택'}
-                </span>
+                <span className="font-medium">{level ? `${level.name} · ${level.subtitle}` : '미선택'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">추가 시술</span>
-                <span className="font-medium text-gray-800">{chosenProcedures.length}개</span>
+                <span className="font-medium">{procSelections.length + (focusedSelection ? 1 : 0)}개</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">예상 월 관리비</span>
+              {plusOption && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Plus</span>
+                  <span className="font-medium">{plusOption.name}</span>
+                </div>
+              )}
+              <div className="flex justify-between pt-1 border-t border-gray-200">
+                <span className="text-gray-500">예상 합계</span>
                 <span className="font-bold text-primary">{won(total)}</span>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setSubmitted(false)}
-              className="mt-5 w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-blue-700"
-            >
+            <button type="button" onClick={() => setSubmitted(false)} className="mt-5 w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-blue-700">
               확인
             </button>
           </div>
