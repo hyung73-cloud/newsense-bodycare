@@ -40,11 +40,12 @@ create table if not exists visits (
 );
 create index if not exists idx_visits_patient on visits(patient_id);
 
--- 체형 사진 (파일은 Storage, 여기는 경로만 저장)
+-- 체형 사진 (파일은 Storage, 여기는 표시 URL + 경로 저장)
 create table if not exists visit_images (
   id text primary key,
   visit_id text not null references visits(id) on delete cascade,
   type text not null check (type in ('front', 'side')),
+  url text,
   storage_path text,
   weight_kg numeric not null default 0,
   waist_cm numeric not null default 0
@@ -61,6 +62,7 @@ create table if not exists inbody_records (
   bmr_kcal int not null default 0,
   abdominal_fat_ratio numeric not null default 0,
   smi numeric not null default 0,
+  sheet_image_url text,
   sheet_storage_path text
 );
 
@@ -103,5 +105,19 @@ begin
   -- admins
   if not exists (select 1 from pg_policies where tablename='admins' and policyname='allow_all_admins') then
     create policy allow_all_admins on admins for all using (true) with check (true);
+  end if;
+end $$;
+
+-- ============================================================
+-- Storage 정책: 'uploads' 버킷 업로드/조회/삭제 허용
+-- ⚠️ 임시 전체 허용. 추후 Supabase Auth 도입 시 강화 필요.
+-- ============================================================
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename='objects' and policyname='uploads_anon_all') then
+    create policy uploads_anon_all on storage.objects
+      for all
+      using (bucket_id = 'uploads')
+      with check (bucket_id = 'uploads');
   end if;
 end $$;

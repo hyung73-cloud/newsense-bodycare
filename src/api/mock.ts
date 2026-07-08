@@ -11,6 +11,16 @@ import type {
   Visit,
   VisitImage,
 } from '../types';
+import { isSupabaseEnabled } from '../lib/supabase';
+import {
+  loadAllFromSupabase,
+  seedToSupabase,
+  persistPatient,
+  persistVisit,
+  persistVisitImage,
+  persistInbody,
+  uploadFile,
+} from './supabaseData';
 
 const PLACEHOLDER_FRONT =
   'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200&h=280&fit=crop&crop=center';
@@ -492,6 +502,9 @@ export function hideVisit(visitId: string): void {
     visit.hidden = true;
     syncPatientStats(visit.patientId);
     recalcTodayStats();
+    persistVisit(visit);
+    const patient = patients.find((p) => p.id === visit.patientId);
+    if (patient) persistPatient(patient);
   }
 }
 
@@ -537,26 +550,25 @@ export function addVisitToday(patientId: string, data: VisitFormData): Visit {
   };
   visits.push(visit);
 
-  visitImages.push(
-    {
-      id: `img-${id}-f`,
-      visitId: id,
-      type: 'front',
-      url: PLACEHOLDER_FRONT,
-      weightKg: data.weightKg,
-      waistCm: data.waistCm,
-    },
-    {
-      id: `img-${id}-s`,
-      visitId: id,
-      type: 'side',
-      url: PLACEHOLDER_SIDE,
-      weightKg: data.weightKg,
-      waistCm: data.waistCm,
-    },
-  );
+  const frontImg: VisitImage = {
+    id: `img-${id}-f`,
+    visitId: id,
+    type: 'front',
+    url: PLACEHOLDER_FRONT,
+    weightKg: data.weightKg,
+    waistCm: data.waistCm,
+  };
+  const sideImg: VisitImage = {
+    id: `img-${id}-s`,
+    visitId: id,
+    type: 'side',
+    url: PLACEHOLDER_SIDE,
+    weightKg: data.weightKg,
+    waistCm: data.waistCm,
+  };
+  visitImages.push(frontImg, sideImg);
 
-  inbodyRecords.push({
+  const inbody: InbodyRecord = {
     visitId: id,
     weightKg: data.weightKg,
     skeletalMuscleKg: data.skeletalMuscleKg,
@@ -566,10 +578,23 @@ export function addVisitToday(patientId: string, data: VisitFormData): Visit {
     abdominalFatRatio: 0.85,
     smi: 6.1,
     sheetImageUrl: INBODY_SHEET,
-  });
+  };
+  inbodyRecords.push(inbody);
 
   syncPatientStats(patientId);
   recalcTodayStats();
+
+  const patient = patients.find((p) => p.id === patientId);
+  void (async () => {
+    if (patient) await persistPatient(patient); // FK: 환자 먼저
+    await persistVisit(visit); // FK: 방문 다음
+    await Promise.all([
+      persistVisitImage(frontImg),
+      persistVisitImage(sideImg),
+      persistInbody(inbody),
+    ]);
+  })();
+
   return visit;
 }
 
@@ -689,7 +714,7 @@ export function markLatestVisitInbodyUploaded(patientId: string): boolean {
 
   let inbody = inbodyRecords.find((r) => r.visitId === visit.id);
   if (!inbody) {
-    inbodyRecords.push({
+    inbody = {
       visitId: visit.id,
       weightKg: visit.weightKg,
       skeletalMuscleKg: visit.skeletalMuscleKg,
@@ -699,10 +724,13 @@ export function markLatestVisitInbodyUploaded(patientId: string): boolean {
       abdominalFatRatio: 0.85,
       smi: 6.1,
       sheetImageUrl: INBODY_SHEET,
-    });
+    };
+    inbodyRecords.push(inbody);
   }
 
   recalcTodayStats();
+  void persistVisit(visit);
+  void persistInbody(inbody);
   return true;
 }
 
@@ -721,18 +749,19 @@ function assignObjectUrl(regKey: string, file: File): string {
 export function setVisitPhotoFile(visitId: string, type: ImageType, file: File): string {
   const url = assignObjectUrl(`photo-${visitId}-${type}`, file);
   const visit = visits.find((v) => v.id === visitId);
-  const existing = visitImages.find((img) => img.visitId === visitId && img.type === type);
-  if (existing) {
-    existing.url = url;
+  let image = visitImages.find((img) => img.visitId === visitId && img.type === type);
+  if (image) {
+    image.url = url;
   } else {
-    visitImages.push({
+    image = {
       id: `img-${visitId}-${type}-upload`,
       visitId,
       type,
       url,
       weightKg: visit?.weightKg ?? 0,
       waistCm: visit?.waistCm ?? 0,
-    });
+    };
+    visitImages.push(image);
   }
   if (visit) {
     visit.photoUploaded = true;
@@ -740,17 +769,40 @@ export function setVisitPhotoFile(visitId: string, type: ImageType, file: File):
     syncPatientStats(visit.patientId);
     recalcTodayStats();
   }
+
+  // 백그라운드로 스토리지 업로드 후 영구 URL로 교체 + DB 저장
+  const img = image;
+  if (isSupabaseEnabled) {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `photos/${visitId}/${type}-${Date.now()}.${ext}`;
+    void (async () => {
+      const uploaded = await uploadFile(path, file);
+      if (!uploaded) {
+        // 업로드 실패: 임시(blob) 주소를 DB에 저장하면 새로고침 시 깨지므로 저장하지 않는다.
+        console.error('[upload] 사진 스토리지 업로드 실패 — 영구 저장을 건너뜁니다.');
+        return;
+      }
+      img.url = uploaded.publicUrl;
+      await persistVisitImage(img, uploaded.path);
+      if (visit) {
+        await persistVisit(visit);
+        const patient = patients.find((p) => p.id === visit.patientId);
+        if (patient) await persistPatient(patient);
+      }
+    })();
+  }
+
   return url;
 }
 
 export function setInbodySheetFile(visitId: string, file: File): string {
   const url = assignObjectUrl(`inbody-${visitId}`, file);
   const visit = visits.find((v) => v.id === visitId);
-  const inbody = inbodyRecords.find((r) => r.visitId === visitId);
+  let inbody = inbodyRecords.find((r) => r.visitId === visitId);
   if (inbody) {
     inbody.sheetImageUrl = url;
   } else if (visit) {
-    inbodyRecords.push({
+    inbody = {
       visitId,
       weightKg: visit.weightKg,
       skeletalMuscleKg: visit.skeletalMuscleKg,
@@ -760,13 +812,31 @@ export function setInbodySheetFile(visitId: string, file: File): string {
       abdominalFatRatio: 0.85,
       smi: 6.1,
       sheetImageUrl: url,
-    });
+    };
+    inbodyRecords.push(inbody);
   }
   if (visit) {
     visit.inbodyUploaded = true;
     if (visit.status === '미완료') visit.status = '진행중';
     recalcTodayStats();
   }
+
+  const record = inbody;
+  if (isSupabaseEnabled && record) {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `inbody/${visitId}/sheet-${Date.now()}.${ext}`;
+    void (async () => {
+      const uploaded = await uploadFile(path, file);
+      if (!uploaded) {
+        console.error('[upload] 인바디 스토리지 업로드 실패 — 영구 저장을 건너뜁니다.');
+        return;
+      }
+      record.sheetImageUrl = uploaded.publicUrl;
+      await persistInbody(record, uploaded.path);
+      if (visit) await persistVisit(visit);
+    })();
+  }
+
   return url;
 }
 
@@ -793,6 +863,13 @@ export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visi
   visit.enteredAt = nowFormatted();
   syncPatientStats(visit.patientId);
   recalcTodayStats();
+
+  void persistVisit(visit);
+  imgs.forEach((img) => void persistVisitImage(img));
+  if (inbody) void persistInbody(inbody);
+  const patient = patients.find((p) => p.id === visit.patientId);
+  if (patient) void persistPatient(patient);
+
   return visit;
 }
 
@@ -883,6 +960,42 @@ export function getRecentPatientCardData(patientId: string) {
     waistCm: visit.waistCm,
     bodyFatPct: visit.bodyFatPct,
   };
+}
+
+/* ──────────────────────────────────────────────
+ * Supabase 부트스트랩
+ * 앱 시작 시 1회 호출. Supabase가 설정돼 있으면 DB에서 로드하고,
+ * DB가 비어 있으면 현재 샘플 데이터를 시드한다.
+ * Supabase 미설정 시에는 아무것도 하지 않아 기존 mock 동작 유지.
+ * ────────────────────────────────────────────── */
+
+function replaceArray<T>(target: T[], next: T[]): void {
+  target.length = 0;
+  target.push(...next);
+}
+
+let initPromise: Promise<void> | null = null;
+
+async function doInit(): Promise<void> {
+  if (!isSupabaseEnabled) return;
+
+  const loaded = await loadAllFromSupabase();
+  if (loaded === null) {
+    // DB가 비어있음(또는 로드 실패) → 현재 샘플 데이터를 그대로 시드
+    await seedToSupabase({ patients, visits, visitImages, inbodyRecords });
+  } else {
+    replaceArray(patients, loaded.patients);
+    replaceArray(visits, loaded.visits);
+    replaceArray(visitImages, loaded.visitImages);
+    replaceArray(inbodyRecords, loaded.inbodyRecords);
+  }
+  recalcTodayStats();
+}
+
+/** 앱 시작 시 1회 호출. 동시 호출 시 같은 로드 Promise를 공유한다. */
+export function initData(): Promise<void> {
+  if (!initPromise) initPromise = doInit();
+  return initPromise;
 }
 
 recalcTodayStats();
