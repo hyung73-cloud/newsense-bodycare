@@ -1,11 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import PinLoginGate from '../components/PinLoginGate';
 import { getDefaultAdminName } from '../auth/adminAuth';
 import { setStaffName } from '../api/mock';
 
 const AUTH_KEY = 'bodycare-auth-v1';
 const STAFF_KEY = 'bodycare-staff-name-v1';
+
+const PUBLIC_PATH_PREFIXES = ['/package', '/bodycare-package'];
 
 interface AuthContextValue {
   logout: () => void;
@@ -21,8 +23,11 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [authenticated, setAuthenticated] = useState(false);
   const [booting, setBooting] = useState(true);
+
+  const isPublicRoute = PUBLIC_PATH_PREFIXES.some((p) => location.pathname.startsWith(p));
 
   useEffect(() => {
     const savedAuth = localStorage.getItem(AUTH_KEY) === '1';
@@ -52,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return <div className="min-h-screen bg-surface" />;
   }
 
-  if (!authenticated) {
+  if (!authenticated && !isPublicRoute) {
     return <PinLoginGate onLogin={login} />;
   }
 
