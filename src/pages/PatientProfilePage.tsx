@@ -271,7 +271,7 @@ export default function PatientProfilePage() {
                   </div>
                 </div>
 
-                <div className="col-span-9">
+                <div className="col-span-9 space-y-5">
                   <div className="panel-card p-5">
                     <h3 className="panel-title mb-4">최근 변화 요약</h3>
                     <div className="grid grid-cols-4 gap-4 mb-6">
@@ -281,6 +281,72 @@ export default function PatientProfilePage() {
                       <SummaryStat label="골격근량" value={`${latestVisit.skeletalMuscleKg} kg`} />
                     </div>
                     <ChangeChart data={getChangeChartData(patient.id)} variant="embedded" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-5">
+                    <div className="panel-card p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="panel-title">사진 비교 (정면)</h3>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('photos')}
+                          className="text-xs text-primary hover:underline font-medium"
+                        >
+                          전체 보기 →
+                        </button>
+                      </div>
+                      {firstVisit ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          <PhotoPreview
+                            label="최초"
+                            date={firstVisit.date}
+                            url={getVisitImages(firstVisit.id, 'front')?.url}
+                          />
+                          <PhotoPreview
+                            label="최신"
+                            date={latestVisit.date}
+                            url={getVisitImages(latestVisit.id, 'front')?.url}
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 text-center py-8">사진이 없습니다.</p>
+                      )}
+                    </div>
+
+                    <div className="panel-card p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="panel-title">인바디 핵심</h3>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('inbody')}
+                          className="text-xs text-primary hover:underline font-medium"
+                        >
+                          전체 보기 →
+                        </button>
+                      </div>
+                      {researchItems.length > 0 ? (
+                        <div className="space-y-2.5">
+                          {researchItems.map((item) => (
+                            <div
+                              key={item.label}
+                              className="flex items-center justify-between text-sm border-b border-gray-50 pb-2 last:border-0"
+                            >
+                              <span className="text-gray-500">{item.label}</span>
+                              <span className="flex items-center gap-2">
+                                <strong
+                                  className={item.highlight ? 'text-red-500' : 'text-gray-900'}
+                                >
+                                  {item.value}
+                                </strong>
+                                <span className="text-[10px] text-gray-400">({item.range})</span>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 text-center py-8">인바디 기록이 없습니다.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -411,6 +477,26 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
     <div className="summary-stat">
       <div className="text-xs text-gray-400">{label}</div>
       <div className="text-lg font-bold text-gray-900 mt-1">{value}</div>
+    </div>
+  );
+}
+
+function PhotoPreview({ label, date, url }: { label: string; date?: string; url?: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative rounded-lg overflow-hidden bg-gray-100 aspect-[3/4] w-full ring-1 ring-gray-200">
+        {url ? (
+          <img src={url} alt={label} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">
+            사진 없음
+          </div>
+        )}
+        <span className="absolute top-1.5 left-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/60 text-white">
+          {label}
+        </span>
+      </div>
+      {date && <div className="text-[10px] text-gray-400 mt-1">{date.replace(/-/g, '.')}</div>}
     </div>
   );
 }
