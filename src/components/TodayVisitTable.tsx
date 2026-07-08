@@ -80,7 +80,7 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
               <th className="table-head-cell text-center">사진</th>
               <th className="table-head-cell text-center">인바디</th>
               <th className="table-head-cell text-center">상태</th>
-              <th className="table-head-cell text-center">작업</th>
+              <th className="table-head-cell text-left">패키지</th>
             </tr>
           </thead>
           <tbody>
@@ -89,7 +89,11 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
                 <td className="px-3 py-2.5 text-gray-600">{idx + 1}</td>
                 <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{v.date.replace(/-/g, '.')}</td>
                 <td className="px-3 py-2.5 text-gray-600">{v.patient.chartNo}</td>
-                <td className="px-3 py-2.5 font-medium text-gray-900">{v.patient.name}</td>
+                <td className="px-3 py-2.5 font-medium text-gray-900">
+                  <Link to={`/patient/${v.patient.id}`} className="hover:text-primary hover:underline">
+                    {v.patient.name}
+                  </Link>
+                </td>
                 <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">
                   {v.patient.sex}/{v.patient.ageAtToday}
                 </td>
@@ -124,10 +128,14 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2.5 text-center">
-                  <Link to={`/patient/${v.patient.id}`} className="btn-ghost-sm">
-                    보기
-                  </Link>
+                <td className="px-3 py-2.5">
+                  {v.packageName ? (
+                    <span className="inline-block px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-semibold whitespace-nowrap">
+                      {v.packageName}
+                    </span>
+                  ) : (
+                    <span className="text-gray-300 text-xs">-</span>
+                  )}
                 </td>
               </tr>
             ))}

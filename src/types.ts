@@ -32,6 +32,7 @@ export interface Visit {
   enteredBy: string;
   enteredAt: string;
   hidden: boolean;
+  packageName?: string;
 }
 
 export interface VisitImage {

@@ -35,6 +35,7 @@ interface VisitRow {
   entered_by: string | null;
   entered_at: string | null;
   hidden: boolean;
+  package_name: string | null;
 }
 
 interface VisitImageRow {
@@ -113,6 +114,7 @@ function rowToVisit(r: VisitRow): Visit {
     enteredBy: r.entered_by ?? '',
     enteredAt: r.entered_at ?? '',
     hidden: !!r.hidden,
+    packageName: r.package_name ?? undefined,
   };
 }
 
@@ -133,6 +135,7 @@ function visitToRow(v: Visit): VisitRow {
     entered_by: v.enteredBy,
     entered_at: v.enteredAt,
     hidden: v.hidden,
+    package_name: v.packageName ?? null,
   };
 }
 

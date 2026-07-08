@@ -36,6 +36,7 @@ create table if not exists visits (
   entered_by text default '',
   entered_at text default '',
   hidden boolean not null default false,
+  package_name text,
   created_at timestamptz not null default now()
 );
 create index if not exists idx_visits_patient on visits(patient_id);

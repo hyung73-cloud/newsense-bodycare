@@ -705,6 +705,80 @@ export function registerReturningPatientToday(
   return visit;
 }
 
+export interface PackageRegistrationInput {
+  name: string;
+  chartNo: string;
+  packageName: string;
+}
+
+/**
+ * 패키지 등록(공개 페이지)에서 호출.
+ * 차트번호(없으면 이름)로 기존 환자를 찾고, 없으면 최소 정보로 신규 생성한 뒤,
+ * 오늘 방문 기록에 결제한 패키지명을 기록한다. (오늘 방문 리스트에 자동 노출)
+ */
+export function registerPackageToday(input: PackageRegistrationInput): Visit {
+  const name = input.name.trim();
+  const chart = input.chartNo.trim();
+
+  let patient =
+    (chart ? patients.find((p) => p.chartNo === chart) : undefined) ??
+    patients.find((p) => p.name === name);
+
+  if (!patient) {
+    patient = {
+      id: `p-${Date.now()}`,
+      chartNo: chart || getNextChartNo(),
+      name: name || '미입력',
+      sex: '여',
+      birth: '',
+      ageAtToday: 0,
+      heightCm: 0,
+      startDate: TODAY.replace(/-/g, '.'),
+      totalVisits: 0,
+      lastVisitDate: TODAY,
+    };
+    patients.push(patient);
+  }
+
+  let visit = visits.find((v) => v.patientId === patient!.id && v.date === TODAY && !v.hidden);
+  if (visit) {
+    visit.packageName = input.packageName;
+    if (!visit.doctorNote) visit.doctorNote = `패키지 등록: ${input.packageName}`;
+  } else {
+    visit = {
+      id: `v-${Date.now()}`,
+      patientId: patient.id,
+      date: TODAY,
+      weightKg: 0,
+      waistCm: 0,
+      bodyFatPct: 0,
+      skeletalMuscleKg: 0,
+      visceralLevel: 0,
+      doctorNote: `패키지 등록: ${input.packageName}`,
+      photoUploaded: false,
+      inbodyUploaded: false,
+      status: '미완료',
+      enteredBy: '온라인 패키지',
+      enteredAt: nowFormatted(),
+      hidden: false,
+      packageName: input.packageName,
+    };
+    visits.push(visit);
+  }
+
+  syncPatientStats(patient.id);
+  recalcTodayStats();
+
+  const targetPatient = patient;
+  const targetVisit = visit;
+  void (async () => {
+    await persistPatient(targetPatient);
+    await persistVisit(targetVisit);
+  })();
+
+  return visit;
+}
+
 export function markLatestVisitInbodyUploaded(patientId: string): boolean {
   const visit = getLatestVisit(patientId);
   if (!visit || visit.date !== TODAY) return false;

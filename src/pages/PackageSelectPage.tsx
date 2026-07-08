@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { registerPackageToday } from '../api/mock';
 import {
   Activity,
   ClipboardCheck,
@@ -220,7 +221,12 @@ export default function PackageSelectPage() {
   };
 
   const confirmPatient = () => {
-    if (!patientName.trim() || !chartNo.trim()) return;
+    if (!patientName.trim() || !chartNo.trim() || !level) return;
+    registerPackageToday({
+      name: patientName.trim(),
+      chartNo: chartNo.trim(),
+      packageName: `${level.name} · ${level.subtitle}`,
+    });
     setPatientModalOpen(false);
     setIssued(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
