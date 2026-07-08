@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Camera, ImageUp } from 'lucide-react';
 import TopNav from '../components/TopNav';
 import PatientHeader from '../components/PatientHeader';
 import PatientProfileTabs, { type PatientProfileTab } from '../components/PatientProfileTabs';
@@ -13,7 +12,6 @@ import ResearchPanel from '../components/ResearchPanel';
 import VisitHistoryTable from '../components/VisitHistoryTable';
 import VisitFormModal from '../components/VisitFormModal';
 import InbodyUploadModal from '../components/InbodyUploadModal';
-import FileUploadButton from '../components/FileUploadButton';
 import { useToast } from '../context/ToastContext';
 import type { Visit, ImageType } from '../types';
 import {
@@ -218,6 +216,7 @@ export default function PatientProfilePage() {
           avatarUrl={latestVisit ? getVisitImages(latestVisit.id, 'front')?.url : undefined}
           onAddRecord={openAddModal}
           onInbodyUpload={() => setInbodyModalOpen(true)}
+          onPhotoUpload={handlePhotoUpload}
         />
 
         <PatientProfileTabs active={activeTab} onChange={setActiveTab} />
@@ -383,34 +382,6 @@ export default function PatientProfilePage() {
 
                 <PhotoCompareRow title="정면" slots={frontSlots} />
                 <PhotoCompareRow title="측면" slots={sideSlots} />
-
-                <div className="mt-4 border-t border-gray-100 pt-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <ImageUp className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-semibold text-gray-700">
-                      오늘 방문 사진 업로드
-                    </span>
-                    <span className="text-[11px] text-gray-400">
-                      ({latestVisit.date.replace(/-/g, '.')} · 최신 슬롯에 반영)
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <FileUploadButton
-                      onFile={(file) => handlePhotoUpload('front', file)}
-                      className="btn-outline text-sm"
-                    >
-                      <Camera className="w-4 h-4" />
-                      정면 사진 업로드
-                    </FileUploadButton>
-                    <FileUploadButton
-                      onFile={(file) => handlePhotoUpload('side', file)}
-                      className="btn-outline text-sm"
-                    >
-                      <Camera className="w-4 h-4" />
-                      측면 사진 업로드
-                    </FileUploadButton>
-                  </div>
-                </div>
 
                 <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-4 py-2 mt-4">
                   📷 촬영 가이드: 배꼽이 눈금자 0 위치에 오도록 서서 촬영합니다. (자동정렬 미구현 — 고정 가이드만 표시)

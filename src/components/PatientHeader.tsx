@@ -1,14 +1,22 @@
-import { User, Plus, Upload, Phone } from 'lucide-react';
-import type { Patient } from '../types';
+import { User, Plus, Upload, Phone, Camera } from 'lucide-react';
+import type { ImageType, Patient } from '../types';
+import FileUploadButton from './FileUploadButton';
 
 interface PatientHeaderProps {
   patient: Patient;
   avatarUrl?: string;
   onAddRecord?: () => void;
   onInbodyUpload?: () => void;
+  onPhotoUpload?: (type: ImageType, file: File) => void;
 }
 
-export default function PatientHeader({ patient, avatarUrl, onAddRecord, onInbodyUpload }: PatientHeaderProps) {
+export default function PatientHeader({
+  patient,
+  avatarUrl,
+  onAddRecord,
+  onInbodyUpload,
+  onPhotoUpload,
+}: PatientHeaderProps) {
   return (
     <div className="panel-card p-5 flex items-center justify-between">
       <div className="flex items-center gap-5">
@@ -55,7 +63,7 @@ export default function PatientHeader({ patient, avatarUrl, onAddRecord, onInbod
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap justify-end">
         <button
           type="button"
           onClick={onAddRecord}
@@ -64,6 +72,18 @@ export default function PatientHeader({ patient, avatarUrl, onAddRecord, onInbod
           <Plus className="w-4 h-4" />
           오늘 기록 추가
         </button>
+        {onPhotoUpload && (
+          <>
+            <FileUploadButton onFile={(file) => onPhotoUpload('front', file)} className="btn-outline">
+              <Camera className="w-4 h-4" />
+              정면 사진
+            </FileUploadButton>
+            <FileUploadButton onFile={(file) => onPhotoUpload('side', file)} className="btn-outline">
+              <Camera className="w-4 h-4" />
+              측면 사진
+            </FileUploadButton>
+          </>
+        )}
         <button
           type="button"
           onClick={onInbodyUpload}
