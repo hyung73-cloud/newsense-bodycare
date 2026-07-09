@@ -13,6 +13,8 @@ import type {
 } from '../types';
 import { isSupabaseEnabled } from '../lib/supabase';
 import {
+  loadCriticalFromSupabase,
+  loadSecondaryFromSupabase,
   loadAllFromSupabase,
   seedToSupabase,
   persistPatient,
@@ -1070,17 +1072,32 @@ export function hasDataLoadError(): boolean {
 export async function retryInitData(): Promise<boolean> {
   initPromise = null;
   dataLoadFailed = false;
-  await doInit();
-  return !dataLoadFailed;
+
+  const result = await loadAllFromSupabase(1);
+  if (result.status === 'empty') {
+    await seedToSupabase({ patients, visits, visitImages, inbodyRecords });
+    recalcTodayStats();
+    return true;
+  }
+  if (result.status === 'loaded') {
+    replaceArray(patients, result.data.patients);
+    replaceArray(visits, result.data.visits);
+    replaceArray(visitImages, result.data.visitImages);
+    replaceArray(inbodyRecords, result.data.inbodyRecords);
+    recalcTodayStats();
+    return true;
+  }
+  dataLoadFailed = true;
+  return false;
 }
 
 async function doInit(): Promise<void> {
   if (!isSupabaseEnabled) return;
 
-  const result = await loadAllFromSupabase();
+  // 1단계: 환자·방문만 4초 이내 로드 → 대시보드 즉시 표시
+  const result = await loadCriticalFromSupabase(4000);
 
   if (result.status === 'empty') {
-    // DB가 확실히 비어있을 때만 최초 샘플 시드
     await seedToSupabase({ patients, visits, visitImages, inbodyRecords });
     recalcTodayStats();
     return;
@@ -1089,14 +1106,18 @@ async function doInit(): Promise<void> {
   if (result.status === 'loaded') {
     replaceArray(patients, result.data.patients);
     replaceArray(visits, result.data.visits);
-    replaceArray(visitImages, result.data.visitImages);
-    replaceArray(inbodyRecords, result.data.inbodyRecords);
     recalcTodayStats();
+
+    // 2단계: 사진·인바디는 백그라운드 로드 (앱 표시를 막지 않음)
+    void loadSecondaryFromSupabase(8000).then((secondary) => {
+      if (secondary) {
+        replaceArray(visitImages, secondary.visitImages);
+        replaceArray(inbodyRecords, secondary.inbodyRecords);
+      }
+    });
     return;
   }
 
-  // status === 'error': 로드 실패.
-  // ⚠️ 절대 시드/덮어쓰기 하지 않는다. 이후 쓰기도 막아 실데이터 오염을 방지.
   dataLoadFailed = true;
 }
 

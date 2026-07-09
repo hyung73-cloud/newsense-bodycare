@@ -14,19 +14,31 @@ export default function App() {
   const [retrying, setRetrying] = useState(false);
 
   const runInit = async () => {
-    await Promise.all([initData(), initAdmins()]);
+    await initData();
+    void initAdmins(); // 관리자 목록은 백그라운드 로드 (앱 표시를 막지 않음)
     setLoadError(hasDataLoadError());
   };
 
   useEffect(() => {
     let cancelled = false;
+    const hardCap = setTimeout(() => {
+      if (!cancelled) {
+        setLoadError(hasDataLoadError());
+        setReady(true);
+      }
+    }, 5000);
+
     runInit()
       .catch((err) => console.error('[init] 초기화 실패', err))
       .finally(() => {
-        if (!cancelled) setReady(true);
+        if (!cancelled) {
+          clearTimeout(hardCap);
+          setReady(true);
+        }
       });
     return () => {
       cancelled = true;
+      clearTimeout(hardCap);
     };
   }, []);
 

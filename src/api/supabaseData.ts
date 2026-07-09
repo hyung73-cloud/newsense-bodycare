@@ -225,57 +225,129 @@ export function getLastLoadErrorMessage(): string | null {
   return lastLoadErrorMessage;
 }
 
+function formatSupabaseError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'object' && err !== null) {
+    const e = err as Record<string, unknown>;
+    const parts: string[] = [];
+    if (typeof e.message === 'string') parts.push(e.message);
+    if (typeof e.code === 'string') parts.push(`(${e.code})`);
+    if (typeof e.details === 'string' && e.details) parts.push(e.details);
+    if (parts.length) return parts.join(' ');
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} 시간 초과 (${ms / 1000}초)`)), ms),
+    ),
+  ]);
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function loadAllOnce(): Promise<LoadResult> {
-  if (!isSupabaseEnabled || !supabase) return { status: 'error' };
+type CriticalData = { patients: Patient[]; visits: Visit[] };
+type SecondaryData = { visitImages: VisitImage[]; inbodyRecords: InbodyRecord[] };
 
-  const [pRes, vRes, iRes, bRes] = await Promise.all([
-    supabase.from('patients').select('*'),
-    supabase.from('visits').select('*'),
-    supabase.from('visit_images').select('*'),
-    supabase.from('inbody_records').select('*'),
-  ]);
-
-  if (pRes.error) throw pRes.error;
-  if (vRes.error) throw vRes.error;
-  if (iRes.error) throw iRes.error;
-  if (bRes.error) throw bRes.error;
-
-  const patients = (pRes.data as PatientRow[]).map(rowToPatient);
-  if (patients.length === 0) return { status: 'empty' };
-
-  return {
-    status: 'loaded',
-    data: {
-      patients,
-      visits: (vRes.data as VisitRow[]).map(rowToVisit),
-      visitImages: (iRes.data as VisitImageRow[]).map(rowToImage),
-      inbodyRecords: (bRes.data as InbodyRow[]).map(rowToInbody),
-    },
-  };
+/** 1단계: 환자·방문만 빠르게 로드 (대시보드 표시용, 4초 이내). */
+export async function loadCriticalFromSupabase(timeoutMs = 4000): Promise<
+  | { status: 'loaded'; data: CriticalData }
+  | { status: 'empty' }
+  | { status: 'error' }
+> {
+  if (!isSupabaseEnabled || !supabase) {
+    lastLoadErrorMessage = 'Supabase 환경변수가 설정되지 않았습니다.';
+    return { status: 'error' };
+  }
+  try {
+    const result = await withTimeout(
+      (async () => {
+        const [pRes, vRes] = await Promise.all([
+          supabase!.from('patients').select('*'),
+          supabase!.from('visits').select('*'),
+        ]);
+        if (pRes.error) throw pRes.error;
+        if (vRes.error) throw vRes.error;
+        const patients = (pRes.data as PatientRow[]).map(rowToPatient);
+        if (patients.length === 0) return { status: 'empty' as const };
+        return {
+          status: 'loaded' as const,
+          data: {
+            patients,
+            visits: (vRes.data as VisitRow[]).map(rowToVisit),
+          },
+        };
+      })(),
+      timeoutMs,
+      '데이터 로드',
+    );
+    lastLoadErrorMessage = null;
+    return result;
+  } catch (err) {
+    lastLoadErrorMessage = formatSupabaseError(err);
+    console.error('[supabase] 핵심 데이터 로드 실패', err);
+    return { status: 'error' };
+  }
 }
 
-/** Supabase에서 전체 데이터를 읽는다. 일시 장애 대비 최대 3회 재시도. */
-export async function loadAllFromSupabase(maxRetries = 3): Promise<LoadResult> {
+/** 2단계: 사진·인바디는 백그라운드 로드 (실패해도 앱은 계속 사용). */
+export async function loadSecondaryFromSupabase(timeoutMs = 8000): Promise<SecondaryData | null> {
+  if (!isSupabaseEnabled || !supabase) return null;
+  try {
+    return await withTimeout(
+      (async () => {
+        const [iRes, bRes] = await Promise.all([
+          supabase!.from('visit_images').select('*'),
+          supabase!.from('inbody_records').select('*'),
+        ]);
+        if (iRes.error) throw iRes.error;
+        if (bRes.error) throw bRes.error;
+        return {
+          visitImages: (iRes.data as VisitImageRow[]).map(rowToImage),
+          inbodyRecords: (bRes.data as InbodyRow[]).map(rowToInbody),
+        };
+      })(),
+      timeoutMs,
+      '사진/인바디 로드',
+    );
+  } catch (err) {
+    console.error('[supabase] 사진/인바디 로드 실패 (앱은 계속 사용 가능)', err);
+    return null;
+  }
+}
+
+/** 수동 재시도용: 핵심 + 부가 데이터 전체 로드 (최대 1회 재시도, 4초 타임아웃). */
+export async function loadAllFromSupabase(maxRetries = 1): Promise<LoadResult> {
   if (!isSupabaseEnabled || !supabase) {
     lastLoadErrorMessage = 'Supabase 환경변수가 설정되지 않았습니다.';
     return { status: 'error' };
   }
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const result = await loadAllOnce();
-      lastLoadErrorMessage = null;
-      return result;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      lastLoadErrorMessage = msg;
-      console.error(`[supabase] 데이터 로드 실패 (${attempt}/${maxRetries}) — 시드/덮어쓰기 안 함`, err);
-      if (attempt < maxRetries) await sleep(1000 * attempt);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const critical = await loadCriticalFromSupabase(4000);
+    if (critical.status === 'empty') return { status: 'empty' };
+    if (critical.status === 'loaded') {
+      const secondary = await loadSecondaryFromSupabase(4000);
+      return {
+        status: 'loaded',
+        data: {
+          patients: critical.data.patients,
+          visits: critical.data.visits,
+          visitImages: secondary?.visitImages ?? [],
+          inbodyRecords: secondary?.inbodyRecords ?? [],
+        },
+      };
     }
+    if (attempt < maxRetries) await sleep(300);
   }
 
   return { status: 'error' };
