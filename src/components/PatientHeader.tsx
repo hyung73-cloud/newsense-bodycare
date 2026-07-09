@@ -59,7 +59,7 @@ export default function PatientHeader({
           </div>
           <div>
             <div className="text-xs text-gray-400">최근 방문일</div>
-            <div className="font-bold text-gray-900">{patient.lastVisitDate.replace(/-/g, '.')}</div>
+            <div className="font-bold text-gray-900">{patient.lastVisitDate ? patient.lastVisitDate.replace(/-/g, '.') : '-'}</div>
           </div>
         </div>
       </div>

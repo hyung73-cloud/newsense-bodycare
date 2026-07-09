@@ -454,17 +454,20 @@ export function getRecentMemos(limit = 3): RecentMemo[] {
 
 export function getRecentPatients(limit = 3): Patient[] {
   return [...patients]
-    .sort((a, b) => b.lastVisitDate.localeCompare(a.lastVisitDate))
+    .filter((p) => Boolean(getLatestVisit(p.id)))
+    .sort((a, b) => (b.lastVisitDate || '').localeCompare(a.lastVisitDate || ''))
     .slice(0, limit);
 }
 
 export function getTodayVisits(): (Visit & { patient: Patient; index: number })[] {
   const todayVisitList = visits
     .filter((v) => v.date === TODAY && !v.hidden)
-    .map((v) => ({
-      ...v,
-      patient: patients.find((p) => p.id === v.patientId)!,
-    }));
+    .map((v) => {
+      const patient = patients.find((p) => p.id === v.patientId);
+      if (!patient) return null;
+      return { ...v, patient };
+    })
+    .filter((row): row is Visit & { patient: Patient } => row !== null);
 
   return todayVisitList.map((v, idx) => ({ ...v, index: idx + 1 }));
 }
@@ -1055,8 +1058,9 @@ export function getDoctorMemos(patientId: string, limit = 3): { date: string; no
 }
 
 export function getRecentPatientCardData(patientId: string) {
-  const patient = getPatientById(patientId)!;
-  const visit = getLatestVisit(patientId)!;
+  const patient = getPatientById(patientId);
+  const visit = getLatestVisit(patientId);
+  if (!patient || !visit) return null;
   const frontImg = getVisitImages(visit.id, 'front');
   return {
     patient,

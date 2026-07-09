@@ -179,6 +179,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-3 gap-4">
                 {recentPatients.map((p) => {
                   const card = getRecentPatientCardData(p.id);
+                  if (!card) return null;
                   return (
                     <RecentPatientCard
                       key={p.id}
