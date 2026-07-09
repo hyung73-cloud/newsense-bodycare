@@ -21,7 +21,7 @@ export default function QuickSearch({ variant = 'card' }: QuickSearchProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="이름, 차트번호, 전화번호 검색"
-          className="w-52 pl-8 pr-3 text-xs input-field"
+          className="w-36 md:w-44 lg:w-52 pl-8 pr-3 text-xs input-field"
         />
         {query && results.length > 0 && (
           <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-gray-100 rounded-lg shadow-lg overflow-hidden min-w-[240px]">

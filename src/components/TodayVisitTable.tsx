@@ -124,7 +124,7 @@ export default function TodayVisitTable({ visits, className = '', onPackageUpdat
           ))}
         </div>
       </div>
-      <div className="flex-1 overflow-x-auto">
+      <div className="flex-1 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10">
             <tr className="table-head">

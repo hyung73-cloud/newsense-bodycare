@@ -102,10 +102,14 @@ export default function VisitCalendar({
               key={day}
               title={data ? `${data.visitCount}명 방문` : undefined}
               className={`h-8 flex flex-col items-center justify-center rounded-md text-[10px] leading-tight transition-colors ${
-                today ? 'bg-primary text-white font-bold shadow-sm' : 'hover:bg-gray-50'
+                today
+                  ? 'bg-primary text-white font-bold shadow-sm'
+                  : redDay
+                    ? 'text-red-500 font-semibold'
+                    : 'text-gray-800 hover:bg-gray-50'
               }`}
             >
-              <span className={redDay ? 'text-red-500 font-medium' : ''}>{day}</span>
+              <span>{day}</span>
               {data && data.visitCount > 0 && (
                 <span className="flex items-center gap-0.5 mt-0.5">
                   {data.newCount > 0 && (

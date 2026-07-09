@@ -35,7 +35,7 @@ export default function ShortcutMenu({ onAction }: ShortcutMenuProps) {
   return (
     <div className="panel-card p-5">
       <h3 className="panel-title mb-4">바로가기 메뉴</h3>
-      <div className="grid grid-cols-7 gap-3.5">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-3.5">
         {shortcuts.map((s) => (
           <button
             key={s.key}

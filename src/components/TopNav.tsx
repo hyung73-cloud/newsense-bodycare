@@ -26,14 +26,16 @@ export default function TopNav({ activeTab }: TopNavProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
-      <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center gap-6">
+      <div className="max-w-[1440px] mx-auto px-3 md:px-5 lg:px-6 py-2 md:py-0 md:h-16 flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-4 lg:gap-6">
         <Link to="/" className="flex-shrink-0 group" title="홈으로 이동">
-          <div className="text-lg font-bold text-gray-900 tracking-tight group-hover:text-primary transition-colors">NewSense BodyCare</div>
-          <div className="text-xs text-gray-500">체중·건강·체형 관리차트</div>
+          <div className="text-base md:text-lg font-bold text-gray-900 tracking-tight group-hover:text-primary transition-colors">
+            NewSense BodyCare
+          </div>
+          <div className="hidden sm:block text-xs text-gray-500">체중·건강·체형 관리차트</div>
         </Link>
 
-        <div className="flex items-center gap-6 flex-1 justify-center">
-          <nav className="flex items-center gap-6">
+        <div className="flex items-center gap-3 md:gap-4 lg:gap-6 flex-1 min-w-0 order-3 md:order-2 basis-full md:basis-auto">
+          <nav className="flex items-center gap-3 md:gap-4 lg:gap-6 overflow-x-auto scrollbar-none">
             {tabs.map((tab) => {
               const isActive =
                 tab.key === resolvedTab ||
@@ -53,38 +55,40 @@ export default function TopNav({ activeTab }: TopNavProps) {
               );
             })}
           </nav>
-          <QuickSearch variant="nav" />
+          <div className="hidden md:block flex-shrink-0">
+            <QuickSearch variant="nav" />
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-3 flex-shrink-0 ml-auto order-2 md:order-3">
           <Link
             to="/package"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary border border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 whitespace-nowrap transition-colors"
+            className="flex items-center gap-1 px-2.5 md:px-3 py-1.5 text-xs md:text-sm text-primary border border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 whitespace-nowrap transition-colors"
             title="패키지 선택 페이지"
           >
             <Package className="w-4 h-4" />
-            패키지
+            <span className="hidden sm:inline">패키지</span>
           </Link>
           {showAdminSettings && (
             <Link
               to="/settings/admins"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap transition-colors"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap transition-colors"
               title="관리자 설정"
             >
               <Settings className="w-4 h-4" />
               관리자설정
             </Link>
           )}
-          <span className="text-sm text-gray-600 whitespace-nowrap">
+          <span className="text-xs md:text-sm text-gray-600 whitespace-nowrap">
             직원 : <span className="font-medium text-gray-900">{staff.name}</span>
           </span>
           <button
             type="button"
             onClick={logout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap transition-colors"
+            className="flex items-center gap-1 px-2.5 md:px-3 py-1.5 text-xs md:text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            로그아웃
+            <span className="hidden sm:inline">로그아웃</span>
           </button>
         </div>
       </div>
