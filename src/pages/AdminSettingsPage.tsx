@@ -66,7 +66,7 @@ export default function AdminSettingsPage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">관리자 계정 설정</h1>
             <p className="text-sm text-gray-500 mt-1">
-              관리자명과 PIN(6자리)을 변경할 수 있습니다. 변경 내용은 이 브라우저에 저장됩니다.
+              관리자명과 PIN(6자리)을 변경할 수 있습니다. 변경 내용은 서버에 저장되어 모든 기기에 동일하게 적용됩니다.
             </p>
           </div>
           <Link to="/" className="btn-outline text-sm py-2">

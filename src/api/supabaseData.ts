@@ -294,6 +294,47 @@ export async function persistInbody(rec: InbodyRecord, storagePath?: string): Pr
 }
 
 /* ──────────────────────────────────────────────
+ * 관리자 계정 (모든 기기 공유용)
+ * ────────────────────────────────────────────── */
+
+export interface AdminRecord {
+  id: string;
+  name: string;
+  pin: string;
+}
+
+/**
+ * 관리자 목록 로드.
+ * - 성공: AdminRecord[] (빈 배열이면 DB가 비어있음)
+ * - 실패(에러): null → 호출측은 로컬값을 유지하고 덮어쓰지 않는다.
+ */
+export async function loadAdmins(): Promise<AdminRecord[] | null> {
+  if (!isSupabaseEnabled || !supabase) return null;
+  try {
+    const { data, error } = await supabase.from('admins').select('*').order('id');
+    if (error) throw error;
+    return (data as AdminRecord[]).map((r) => ({ id: r.id, name: r.name, pin: r.pin }));
+  } catch (err) {
+    console.error('[supabase] 관리자 로드 실패 — 로컬값 유지', err);
+    return null;
+  }
+}
+
+/** 관리자 목록 저장(upsert). id 기준으로 6개 행을 갱신한다. */
+export async function persistAdmins(accounts: AdminRecord[]): Promise<boolean> {
+  if (!isSupabaseEnabled || !supabase) return false;
+  try {
+    const rows = accounts.map((a) => ({ id: a.id, name: a.name, pin: a.pin }));
+    const { error } = await supabase.from('admins').upsert(rows, { onConflict: 'id' });
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error('[supabase] 관리자 저장 실패', err);
+    return false;
+  }
+}
+
+/* ──────────────────────────────────────────────
  * 파일 업로드 (Storage)
  * ────────────────────────────────────────────── */
 

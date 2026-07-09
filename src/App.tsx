@@ -5,14 +5,15 @@ import PatientProfilePage from './pages/PatientProfilePage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
 import PackageSelectPage from './pages/PackageSelectPage';
 import { initData, hasDataLoadError } from './api/mock';
+import { initAdmins } from './auth/adminAuth';
 
 export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    initData()
-      .catch((err) => console.error('[init] 데이터 초기화 실패', err))
+    Promise.all([initData(), initAdmins()])
+      .catch((err) => console.error('[init] 초기화 실패', err))
       .finally(() => {
         if (!cancelled) setReady(true);
       });

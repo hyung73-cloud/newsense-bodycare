@@ -8,7 +8,12 @@ interface VisitCalendarProps {
   initialMonth?: number;
 }
 
-export default function VisitCalendar({ initialYear = 2025, initialMonth = 12 }: VisitCalendarProps) {
+const NOW = new Date();
+
+export default function VisitCalendar({
+  initialYear = NOW.getFullYear(),
+  initialMonth = NOW.getMonth() + 1,
+}: VisitCalendarProps) {
   const [year, setYear] = useState(initialYear);
   const [month, setMonth] = useState(initialMonth);
   const days = getCalendarDays(year, month);
@@ -35,8 +40,9 @@ export default function VisitCalendar({ initialYear = 2025, initialMonth = 12 }:
   };
 
   const goToday = () => {
-    setYear(2025);
-    setMonth(12);
+    const d = new Date();
+    setYear(d.getFullYear());
+    setMonth(d.getMonth() + 1);
   };
 
   const getDayData = (day: number): CalendarDay | undefined =>

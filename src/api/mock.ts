@@ -29,8 +29,14 @@ const PLACEHOLDER_SIDE =
 const INBODY_SHEET =
   'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=300&h=400&fit=crop';
 
-export const TODAY = '2025-12-16';
-export const TODAY_DISPLAY = '2025.12.16 (화)';
+const _now = new Date();
+const _pad = (n: number) => String(n).padStart(2, '0');
+const _dow = ['일', '월', '화', '수', '목', '금', '토'][_now.getDay()];
+
+/** 실제 오늘 날짜 (YYYY-MM-DD). 앱이 로드되는 날짜로 매일 자동 갱신된다. */
+export const TODAY = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(_now.getDate())}`;
+/** 화면 표시용 오늘 날짜. 예: 2026.07.08 (수) */
+export const TODAY_DISPLAY = `${_now.getFullYear()}.${_pad(_now.getMonth() + 1)}.${_pad(_now.getDate())} (${_dow})`;
 
 export const staff: StaffInfo = { name: '김민수' };
 
@@ -373,17 +379,22 @@ export const recentMemos: RecentMemo[] = [
 function generateCalendarDays(year: number, month: number): CalendarDay[] {
   const days: CalendarDay[] = [];
   const daysInMonth = new Date(year, month, 0).getDate();
-  const visitMap: Record<string, { total: number; newCount: number; returning: number }> = {
-    '2025-12-02': { total: 12, newCount: 1, returning: 11 },
-    '2025-12-09': { total: 15, newCount: 2, returning: 13 },
-    '2025-12-10': { total: 10, newCount: 2, returning: 8 },
-    '2025-12-14': { total: 8, newCount: 1, returning: 7 },
-    '2025-12-16': { total: 18, newCount: 3, returning: 15 },
-  };
+
+  // 실제 방문 데이터로 날짜별 집계 (신환: 시작일 == 방문일)
+  const counts: Record<string, { total: number; newCount: number; returning: number }> = {};
+  for (const v of visits) {
+    if (v.hidden) continue;
+    const entry = counts[v.date] ?? (counts[v.date] = { total: 0, newCount: 0, returning: 0 });
+    entry.total += 1;
+    const patient = patients.find((p) => p.id === v.patientId);
+    const isNew = patient ? patient.startDate.replace(/\./g, '-') === v.date : false;
+    if (isNew) entry.newCount += 1;
+    else entry.returning += 1;
+  }
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const data = visitMap[dateStr];
+    const data = counts[dateStr];
     days.push({
       date: dateStr,
       visitCount: data?.total ?? 0,
@@ -393,8 +404,6 @@ function generateCalendarDays(year: number, month: number): CalendarDay[] {
   }
   return days;
 }
-
-export const calendarDays = generateCalendarDays(2025, 12);
 
 // --- API-like getters ---
 
@@ -436,7 +445,6 @@ export function getTodayVisits(): (Visit & { patient: Patient; index: number })[
 }
 
 export function getCalendarDays(year: number, month: number): CalendarDay[] {
-  if (year === 2025 && month === 12) return calendarDays;
   return generateCalendarDays(year, month);
 }
 
