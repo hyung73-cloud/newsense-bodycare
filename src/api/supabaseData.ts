@@ -353,52 +353,64 @@ export async function loadCriticalFromSupabase(timeoutMs = 8000): Promise<
   }
 }
 
-/** 2단계: 사진·인바디 로드 (재시도 포함). */
+/** 2단계: 사진·인바디 로드 (supabase-js 우선, REST 폴백, 재시도 포함). */
+async function loadSecondaryOnce(): Promise<SecondaryData> {
+  if (supabase) {
+    const [imgRes, inbRes] = await Promise.all([
+      supabase.from('visit_images').select('*'),
+      supabase.from('inbody_records').select('*'),
+    ]);
+    if (!imgRes.error && !inbRes.error) {
+      return {
+        visitImages: (imgRes.data as VisitImageRow[]).map(rowToImage),
+        inbodyRecords: (inbRes.data as InbodyRow[]).map(rowToInbody),
+      };
+    }
+    console.warn('[supabase] client 사진/인바디 로드 실패 → REST 재시도', imgRes.error, inbRes.error);
+  }
+
+  const [iRows, bRows] = await Promise.all([
+    restGet<VisitImageRow>('visit_images'),
+    restGet<InbodyRow>('inbody_records'),
+  ]);
+  return {
+    visitImages: iRows.map(rowToImage),
+    inbodyRecords: bRows.map(rowToInbody),
+  };
+}
+
 export async function loadSecondaryFromSupabase(
-  timeoutMs = 12000,
-  maxRetries = 2,
+  timeoutMs = 15000,
+  maxRetries = 3,
 ): Promise<SecondaryData | null> {
   if (!isSupabaseEnabled || !supabaseUrl || !supabaseAnonKey) return null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      return await withTimeout(
-        (async () => {
-          const [iRows, bRows] = await Promise.all([
-            restGet<VisitImageRow>('visit_images'),
-            restGet<InbodyRow>('inbody_records'),
-          ]);
-          return {
-            visitImages: iRows.map(rowToImage),
-            inbodyRecords: bRows.map(rowToInbody),
-          };
-        })(),
-        timeoutMs,
-        '사진/인바디 로드',
-      );
+      return await withTimeout(loadSecondaryOnce(), timeoutMs, '사진/인바디 로드');
     } catch (err) {
       console.error(
         `[supabase] 사진/인바디 로드 실패 (${attempt + 1}/${maxRetries + 1})`,
         err,
       );
-      if (attempt < maxRetries) await sleep(800 * (attempt + 1));
+      if (attempt < maxRetries) await sleep(1000 * (attempt + 1));
     }
   }
   return null;
 }
 
-/** 수동 재시도용: 핵심 + 부가 데이터 전체 로드 (최대 1회 재시도, 4초 타임아웃). */
-export async function loadAllFromSupabase(maxRetries = 1): Promise<LoadResult> {
+/** 수동 재시도용: 핵심 + 부가 데이터 전체 로드. */
+export async function loadAllFromSupabase(maxRetries = 2): Promise<LoadResult> {
   if (!isSupabaseEnabled || !supabase) {
     lastLoadErrorMessage = 'Supabase 환경변수가 설정되지 않았습니다.';
     return { status: 'error' };
   }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const critical = await loadCriticalFromSupabase(8000);
+    const critical = await loadCriticalFromSupabase(12000);
     if (critical.status === 'empty') return { status: 'empty' };
     if (critical.status === 'loaded') {
-      const secondary = await loadSecondaryFromSupabase(4000);
+      const secondary = await loadSecondaryFromSupabase(15000, 3);
       return {
         status: 'loaded',
         data: {
@@ -409,7 +421,7 @@ export async function loadAllFromSupabase(maxRetries = 1): Promise<LoadResult> {
         },
       };
     }
-    if (attempt < maxRetries) await sleep(300);
+    if (attempt < maxRetries) await sleep(1000);
   }
 
   return { status: 'error' };
@@ -447,7 +459,9 @@ export async function persistVisit(v: Visit): Promise<void> {
 
 export async function persistVisitImage(img: VisitImage, storagePath?: string): Promise<void> {
   if (!isSupabaseEnabled || !supabase) return;
-  const { error } = await supabase.from('visit_images').upsert(imageToRow(img, storagePath));
+  const { error } = await supabase
+    .from('visit_images')
+    .upsert(imageToRow(img, storagePath), { onConflict: 'id' });
   if (error) throw error;
 }
 

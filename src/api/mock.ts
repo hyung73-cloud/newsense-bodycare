@@ -12,6 +12,7 @@ import type {
   VisitImage,
 } from '../types';
 import { isSupabaseEnabled } from '../lib/supabase';
+import { waitForAuthSession } from '../auth/clinicAuth';
 import { runServerCommit, markLocalSynced } from './syncEngine';
 import {
   loadCriticalFromSupabase,
@@ -30,6 +31,7 @@ export type { SyncState, SyncStatus } from './syncEngine';
 
 /** 변경 내용을 서버에 저장하고 로컬 캐시도 갱신한다. */
 async function commitToServer(label: string, fn: () => Promise<void>): Promise<void> {
+  lastMutationAt = Date.now();
   allowCacheWrite = true;
   if (!isSupabaseEnabled) {
     saveDataCache();
@@ -621,11 +623,7 @@ export function addVisitToday(patientId: string, data: VisitFormData): Visit {
   void commitToServer('방문 추가', async () => {
     if (patient) await persistPatient(patient);
     await persistVisit(visit);
-    await Promise.all([
-      persistVisitImage(frontImg),
-      persistVisitImage(sideImg),
-      persistInbody(inbody),
-    ]);
+    // 사진·인바디는 실제 업로드 시에만 서버 저장 (placeholder URL 저장 방지)
   }).catch((err) => console.error('[sync] 방문 추가 저장 실패', err));
 
   return visit;
@@ -896,6 +894,8 @@ export async function setVisitPhotoFile(visitId: string, type: ImageType, file: 
         if (p) await persistPatient(p);
       }
     });
+  } else {
+    saveDataCache();
   }
 
   return img.url;
@@ -1097,6 +1097,43 @@ let dataLoadFailed = false;
 /** 서버 연결 실패 후 로컬 캐시로 동작 중인지. */
 let offlineMode = false;
 let allowCacheWrite = false;
+let lastMutationAt = 0;
+let initStartedAt = 0;
+
+function shouldApplyInitData(): boolean {
+  return lastMutationAt <= initStartedAt;
+}
+
+function applySecondaryOrCache(secondary: SecondaryData | null): void {
+  if (!shouldApplyInitData()) {
+    console.info('[init] 업로드 이후 초기화 완료 — 메모리 사진 데이터 유지');
+    return;
+  }
+
+  if (secondary) {
+    replaceArray(visitImages, secondary.visitImages);
+    replaceArray(inbodyRecords, secondary.inbodyRecords);
+    return;
+  }
+
+  const cache = loadDataCache();
+  const visitIds = new Set(visits.map((v) => v.id));
+  const cachedImages =
+    cache?.visitImages?.filter(
+      (img) => visitIds.has(img.visitId) && isPersistableUrl(img.url),
+    ) ?? [];
+  const cachedInbody =
+    cache?.inbodyRecords?.filter(
+      (r) => visitIds.has(r.visitId) && isPersistableUrl(r.sheetImageUrl),
+    ) ?? [];
+  replaceArray(visitImages, cachedImages);
+  replaceArray(inbodyRecords, cachedInbody);
+  if (cachedImages.length === 0 && cachedInbody.length === 0) {
+    console.warn('[init] 사진/인바디 서버 로드 실패 — 캐시에도 유효한 이미지 없음');
+  } else {
+    console.warn('[init] 사진/인바디 서버 로드 실패 → 로컬 캐시 이미지 사용');
+  }
+}
 
 function isPersistableUrl(url: string | undefined): boolean {
   return Boolean(url && !url.startsWith('blob:'));
@@ -1172,9 +1209,12 @@ export function hasDataLoadError(): boolean {
 export async function retryInitData(): Promise<boolean> {
   initPromise = null;
   dataLoadFailed = false;
+  initStartedAt = Date.now();
+  await waitForAuthSession(10000);
 
-  const result = await loadAllFromSupabase(1);
+  const result = await loadAllFromSupabase(2);
   if (result.status === 'empty') {
+    if (!shouldApplyInitData()) return true;
     await seedToSupabase({ patients, visits, visitImages, inbodyRecords });
     recalcTodayStats();
     allowCacheWrite = true;
@@ -1182,6 +1222,7 @@ export async function retryInitData(): Promise<boolean> {
     return true;
   }
   if (result.status === 'loaded') {
+    if (!shouldApplyInitData()) return true;
     replaceArray(patients, result.data.patients);
     replaceArray(visits, result.data.visits);
     replaceArray(visitImages, result.data.visitImages);
@@ -1203,9 +1244,13 @@ export async function retryInitData(): Promise<boolean> {
 async function doInit(): Promise<void> {
   if (!isSupabaseEnabled) return;
 
-  const result = await loadCriticalFromSupabase(8000);
+  initStartedAt = Date.now();
+  await waitForAuthSession(10000);
+
+  const result = await loadCriticalFromSupabase(12000);
 
   if (result.status === 'empty') {
+    if (!shouldApplyInitData()) return;
     await seedToSupabase({ patients, visits, visitImages, inbodyRecords });
     recalcTodayStats();
     offlineMode = false;
@@ -1215,32 +1260,12 @@ async function doInit(): Promise<void> {
   }
 
   if (result.status === 'loaded') {
+    if (!shouldApplyInitData()) return;
     replaceArray(patients, result.data.patients);
     replaceArray(visits, result.data.visits);
 
-    const secondary = await loadSecondaryFromSupabase(12000, 2);
-    if (secondary) {
-      replaceArray(visitImages, secondary.visitImages);
-      replaceArray(inbodyRecords, secondary.inbodyRecords);
-    } else {
-      const cache = loadDataCache();
-      const visitIds = new Set(visits.map((v) => v.id));
-      const cachedImages =
-        cache?.visitImages?.filter(
-          (img) => visitIds.has(img.visitId) && isPersistableUrl(img.url),
-        ) ?? [];
-      const cachedInbody =
-        cache?.inbodyRecords?.filter(
-          (r) => visitIds.has(r.visitId) && isPersistableUrl(r.sheetImageUrl),
-        ) ?? [];
-      replaceArray(visitImages, cachedImages);
-      replaceArray(inbodyRecords, cachedInbody);
-      if (cachedImages.length === 0 && cachedInbody.length === 0) {
-        console.warn('[init] 사진/인바디 서버 로드 실패 — 캐시에도 유효한 이미지 없음');
-      } else {
-        console.warn('[init] 사진/인바디 서버 로드 실패 → 로컬 캐시 이미지 사용');
-      }
-    }
+    const secondary = await loadSecondaryFromSupabase(15000, 3);
+    applySecondaryOrCache(secondary);
 
     recalcTodayStats();
     offlineMode = false;
@@ -1265,6 +1290,12 @@ async function doInit(): Promise<void> {
 export function initData(): Promise<void> {
   if (!initPromise) initPromise = doInit();
   return initPromise;
+}
+
+/** 로그인·세션 복원 후 데이터를 다시 불러올 때 init Promise 초기화. */
+export function resetInitPromise(): void {
+  initPromise = null;
+  initStartedAt = 0;
 }
 
 recalcTodayStats();

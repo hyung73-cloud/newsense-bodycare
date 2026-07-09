@@ -43,3 +43,18 @@ export async function restoreClinicSession(): Promise<boolean> {
   const { data } = await supabase.auth.getSession();
   return Boolean(data.session);
 }
+
+/** 데이터 로드 전 세션 준비 대기 (로그인 직후·새로고침 직후 레이스 방지). */
+export async function waitForAuthSession(timeoutMs = 10000): Promise<void> {
+  if (!isClinicAuthEnabled() || !supabase) return;
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('bodycare-auth-v1') !== '1') {
+    return;
+  }
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) return;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  console.warn('[auth] 세션 대기 시간 초과 — 데이터 로드를 계속 시도합니다');
+}

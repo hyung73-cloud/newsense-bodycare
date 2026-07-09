@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import PinLoginGate from '../components/PinLoginGate';
 import { getDefaultAdminName } from '../auth/adminAuth';
 import { signInClinic, signOutClinic, restoreClinicSession, isClinicAuthEnabled } from '../auth/clinicAuth';
-import { setStaffName } from '../api/mock';
+import { setStaffName, resetInitPromise } from '../api/mock';
 
 const AUTH_KEY = 'bodycare-auth-v1';
 const STAFF_KEY = 'bodycare-staff-name-v1';
@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem(AUTH_KEY);
           setAuthenticated(false);
         } else {
+          resetInitPromise();
           setAuthenticated(true);
         }
         setBooting(false);
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStaffName(adminName);
     localStorage.setItem(STAFF_KEY, adminName);
     localStorage.setItem(AUTH_KEY, '1');
+    resetInitPromise();
     setAuthenticated(true);
     navigate('/', { replace: true });
   };

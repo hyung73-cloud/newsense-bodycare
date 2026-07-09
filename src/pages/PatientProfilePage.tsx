@@ -193,9 +193,10 @@ export default function PatientProfilePage() {
     try {
       await setVisitPhotoFile(latestVisit.id, type, file);
       bump();
-      showToast(`${type === 'front' ? '정면' : '측면'} 사진이 서버에 저장되었습니다.`);
+      showToast(`${type === 'front' ? '정면' : '측면'} 사진이 서버에 저장되었습니다. 새로고침해도 유지됩니다.`);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : '사진 저장에 실패했습니다.');
+      bump();
+      showToast(err instanceof Error ? err.message : '사진 저장에 실패했습니다. 다시 시도해주세요.');
     }
   };
 

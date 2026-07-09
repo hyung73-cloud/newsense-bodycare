@@ -34,28 +34,20 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     const phaseTimer = setTimeout(() => {
-      if (!cancelled) setLoadingPhase('데이터 불러오는 중…');
-    }, 3000);
-
-    const hardCap = setTimeout(() => {
-      if (!cancelled) {
-        syncState();
-        setReady(true);
-      }
-    }, 10000);
+      if (!cancelled) setLoadingPhase('사진·인바디 불러오는 중…');
+    }, 4000);
 
     runInit()
       .catch((err) => console.error('[init] 초기화 실패', err))
       .finally(() => {
         if (!cancelled) {
-          clearTimeout(hardCap);
           clearTimeout(phaseTimer);
+          syncState();
           setReady(true);
         }
       });
     return () => {
       cancelled = true;
-      clearTimeout(hardCap);
       clearTimeout(phaseTimer);
     };
   }, []);
@@ -76,7 +68,8 @@ export default function App() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-surface text-gray-500">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
         <p className="text-sm">{loadingPhase}</p>
-        <p className="text-xs text-gray-400 mt-2">환자·사진·인바디 데이터를 불러오는 중입니다</p>
+        <p className="text-xs text-gray-400 mt-2">서버에서 환자·사진·인바디 데이터를 불러오는 중입니다</p>
+        <p className="text-xs text-gray-400 mt-1">무료 서버는 20~30초 걸릴 수 있습니다</p>
       </div>
     );
   }
