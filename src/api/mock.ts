@@ -747,6 +747,8 @@ export interface PackageRegistrationInput {
   name: string;
   chartNo: string;
   packageName: string;
+  packageDetail?: string;
+  packagePrice?: number;
 }
 
 /**
@@ -781,6 +783,8 @@ export function registerPackageToday(input: PackageRegistrationInput): Visit {
   let visit = visits.find((v) => v.patientId === patient!.id && v.date === TODAY && !v.hidden);
   if (visit) {
     visit.packageName = input.packageName;
+    visit.packageDetail = input.packageDetail;
+    visit.packagePrice = input.packagePrice;
     if (!visit.doctorNote) visit.doctorNote = `패키지 등록: ${input.packageName}`;
   } else {
     visit = {
@@ -800,6 +804,8 @@ export function registerPackageToday(input: PackageRegistrationInput): Visit {
       enteredAt: nowFormatted(),
       hidden: false,
       packageName: input.packageName,
+      packageDetail: input.packageDetail,
+      packagePrice: input.packagePrice,
     };
     visits.push(visit);
   }

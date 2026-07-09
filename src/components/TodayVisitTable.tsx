@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Camera, FileText, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Patient, Visit, VisitStatus } from '../types';
+import { formatWon, getPackageDisplay } from '../lib/packageDisplay';
 
 const INITIAL_LIMIT = 5;
 
@@ -80,7 +81,7 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
               <th className="table-head-cell text-center">사진</th>
               <th className="table-head-cell text-center">인바디</th>
               <th className="table-head-cell text-center">상태</th>
-              <th className="table-head-cell text-left">패키지</th>
+              <th className="table-head-cell text-left min-w-[220px]">패키지</th>
             </tr>
           </thead>
           <tbody>
@@ -128,14 +129,24 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2.5">
-                  {v.packageName ? (
-                    <span className="inline-block px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-semibold whitespace-nowrap">
-                      {v.packageName}
-                    </span>
-                  ) : (
-                    <span className="text-gray-300 text-xs">-</span>
-                  )}
+                <td className="px-3 py-2.5 align-top min-w-[220px] max-w-[320px]">
+                  {(() => {
+                    const pkg = getPackageDisplay(v);
+                    if (!pkg) return <span className="text-gray-300 text-xs">-</span>;
+                    return (
+                      <div className="space-y-0.5">
+                        <div className="text-[11px] font-semibold text-primary leading-snug">{pkg.title}</div>
+                        {pkg.items && (
+                          <div className="text-[10px] text-gray-600 leading-relaxed break-words">
+                            {pkg.items}
+                          </div>
+                        )}
+                        {pkg.price > 0 && (
+                          <div className="text-[11px] font-bold text-gray-900">{formatWon(pkg.price)}</div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </td>
               </tr>
             ))}

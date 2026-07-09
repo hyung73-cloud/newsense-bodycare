@@ -33,6 +33,8 @@ export interface Visit {
   enteredAt: string;
   hidden: boolean;
   packageName?: string;
+  packageDetail?: string;
+  packagePrice?: number;
 }
 
 export interface VisitImage {

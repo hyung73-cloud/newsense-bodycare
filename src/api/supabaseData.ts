@@ -37,6 +37,8 @@ interface VisitRow {
   entered_at: string | null;
   hidden: boolean;
   package_name: string | null;
+  package_detail: string | null;
+  package_price: number | null;
 }
 
 interface VisitImageRow {
@@ -146,6 +148,8 @@ function rowToVisit(r: VisitRow): Visit {
     enteredAt: r.entered_at ?? '',
     hidden: !!r.hidden,
     packageName: r.package_name ?? undefined,
+    packageDetail: r.package_detail ?? undefined,
+    packagePrice: r.package_price != null ? num(r.package_price) : undefined,
   };
 }
 
@@ -167,6 +171,8 @@ function visitToRow(v: Visit): VisitRow {
     entered_at: v.enteredAt,
     hidden: v.hidden,
     package_name: v.packageName ?? null,
+    package_detail: v.packageDetail ?? null,
+    package_price: v.packagePrice ?? null,
   };
 }
 

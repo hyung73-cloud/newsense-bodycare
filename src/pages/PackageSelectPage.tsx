@@ -222,10 +222,13 @@ export default function PackageSelectPage() {
 
   const confirmPatient = () => {
     if (!patientName.trim() || !chartNo.trim() || !level) return;
+    const itemLabels = tickets.map((t) => t.label).join(', ');
     registerPackageToday({
       name: patientName.trim(),
       chartNo: chartNo.trim(),
       packageName: `${level.name} · ${level.subtitle}`,
+      packageDetail: itemLabels,
+      packagePrice: total,
     });
     setPatientModalOpen(false);
     setIssued(true);
