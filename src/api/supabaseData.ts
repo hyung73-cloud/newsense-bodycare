@@ -258,14 +258,24 @@ function sleep(ms: number): Promise<void> {
 type CriticalData = { patients: Patient[]; visits: Visit[] };
 type SecondaryData = { visitImages: VisitImage[]; inbodyRecords: InbodyRecord[] };
 
+/** REST 호출용 헤더. 로그인 세션이 있으면 JWT를 사용 (RLS authenticated 정책 대응). */
+async function getRestAuthHeaders(): Promise<Record<string, string>> {
+  let bearer = supabaseAnonKey as string;
+  if (supabase) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) bearer = data.session.access_token;
+  }
+  return {
+    apikey: supabaseAnonKey as string,
+    Authorization: `Bearer ${bearer}`,
+    Accept: 'application/json',
+  };
+}
+
 /** REST API 직접 호출 (supabase-js 클라이언트보다 브라우저에서 안정적). */
 async function restGet<T>(table: string): Promise<T[]> {
   const res = await fetch(`${supabaseUrl}/rest/v1/${table}?select=*`, {
-    headers: {
-      apikey: supabaseAnonKey as string,
-      Authorization: `Bearer ${supabaseAnonKey}`,
-      Accept: 'application/json',
-    },
+    headers: await getRestAuthHeaders(),
   });
   if (!res.ok) {
     const text = await res.text();
