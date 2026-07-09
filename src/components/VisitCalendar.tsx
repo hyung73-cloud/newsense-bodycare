@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getCalendarDays, TODAY } from '../api/mock';
 import type { CalendarDay } from '../types';
+import { isRedCalendarDay, isRedWeekdayHeader } from '../lib/koreanHolidays';
 
 interface VisitCalendarProps {
   initialYear?: number;
@@ -53,8 +54,6 @@ export default function VisitCalendar({
     return dateStr === TODAY;
   };
 
-  const isSunday = (dayIndex: number) => dayIndex % 7 === 0;
-
   return (
     <div className="panel-card p-4 flex-shrink-0">
       <div className="flex items-center justify-between mb-3">
@@ -82,7 +81,7 @@ export default function VisitCalendar({
 
       <div className="grid grid-cols-7 gap-px text-center text-[10px] mb-0.5">
         {weekDays.map((wd, i) => (
-          <div key={wd} className={`py-0.5 font-medium ${i === 0 ? 'text-red-500' : 'text-gray-500'}`}>
+          <div key={wd} className={`py-0.5 font-medium ${isRedWeekdayHeader(i) ? 'text-red-500' : 'text-gray-500'}`}>
             {wd}
           </div>
         ))}
@@ -95,8 +94,8 @@ export default function VisitCalendar({
         {days.map((_, idx) => {
           const day = idx + 1;
           const data = getDayData(day);
-          const dayOfWeek = (firstDayOfWeek + idx) % 7;
           const today = isToday(day);
+          const redDay = !today && isRedCalendarDay(year, month, day);
 
           return (
             <div
@@ -106,7 +105,7 @@ export default function VisitCalendar({
                 today ? 'bg-primary text-white font-bold shadow-sm' : 'hover:bg-gray-50'
               }`}
             >
-              <span className={!today && isSunday(dayOfWeek) ? 'text-red-500' : ''}>{day}</span>
+              <span className={redDay ? 'text-red-500 font-medium' : ''}>{day}</span>
               {data && data.visitCount > 0 && (
                 <span className="flex items-center gap-0.5 mt-0.5">
                   {data.newCount > 0 && (

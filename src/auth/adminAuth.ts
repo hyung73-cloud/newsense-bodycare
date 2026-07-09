@@ -88,6 +88,13 @@ export function verifyAdminPin(name: string, pin: string): boolean {
   return matched.pin === pin;
 }
 
+/** 관리자 설정 페이지·버튼 접근 권한 (목록 1번 계정만) */
+export function canAccessAdminSettings(staffName: string): boolean {
+  const chief = getAdminAccounts()[0];
+  if (!chief) return false;
+  return chief.name.trim() === staffName.trim();
+}
+
 export function validateAdminAccounts(accounts: AdminAccount[]): string | null {
   if (accounts.length !== 6) return '관리자는 6명이어야 합니다.';
   const names = new Set<string>();

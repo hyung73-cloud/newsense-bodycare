@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { ArrowLeft, Save, ShieldCheck, ShieldAlert } from 'lucide-react';
 import TopNav from '../components/TopNav';
 import {
+  canAccessAdminSettings,
   getAdminAccounts,
   saveAdminAccounts,
   validateAdminAccounts,
@@ -28,6 +29,10 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     void getServerAuthStatus().then(setServerAuth);
   }, []);
+
+  if (!canAccessAdminSettings(getStaff().name)) {
+    return <Navigate to="/" replace />;
+  }
 
   const updateRow = (id: string, field: 'name' | 'pin', value: string) => {
     setAccounts((prev) =>
@@ -77,6 +82,9 @@ export default function AdminSettingsPage() {
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">관리자 계정 설정</h1>
             <p className="text-sm text-gray-500 mt-1">
               관리자명과 PIN(6자리)을 변경할 수 있습니다. 변경 내용은 서버에 저장되어 모든 기기에 동일하게 적용됩니다.
+              <span className="block mt-1 text-xs text-gray-400">
+                이 페이지는 목록 1번 관리자({getAdminAccounts()[0]?.name ?? '-'})만 접근할 수 있습니다.
+              </span>
             </p>
           </div>
           <Link to="/" className="btn-outline text-sm py-2">

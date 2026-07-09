@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LogOut, Settings, Package } from 'lucide-react';
 import { getStaff } from '../api/mock';
+import { canAccessAdminSettings } from '../auth/adminAuth';
 import { useAuth } from '../context/AuthContext';
 import QuickSearch from './QuickSearch';
 
@@ -21,6 +22,7 @@ export default function TopNav({ activeTab }: TopNavProps) {
   const staff = getStaff();
   const isPatientPage = location.pathname.startsWith('/patient/');
   const resolvedTab = activeTab ?? (isPatientPage ? 'manage' : 'dashboard');
+  const showAdminSettings = canAccessAdminSettings(staff.name);
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
@@ -55,9 +57,6 @@ export default function TopNav({ activeTab }: TopNavProps) {
         </div>
 
         <div className="flex items-center gap-3 flex-shrink-0">
-          <span className="text-sm text-gray-600 whitespace-nowrap">
-            직원 : <span className="font-medium text-gray-900">{staff.name}</span>
-          </span>
           <Link
             to="/package"
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-primary border border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 whitespace-nowrap transition-colors"
@@ -66,14 +65,19 @@ export default function TopNav({ activeTab }: TopNavProps) {
             <Package className="w-4 h-4" />
             패키지
           </Link>
-          <Link
-            to="/settings/admins"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap transition-colors"
-            title="관리자 설정"
-          >
-            <Settings className="w-4 h-4" />
-            관리자설정
-          </Link>
+          {showAdminSettings && (
+            <Link
+              to="/settings/admins"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 whitespace-nowrap transition-colors"
+              title="관리자 설정"
+            >
+              <Settings className="w-4 h-4" />
+              관리자설정
+            </Link>
+          )}
+          <span className="text-sm text-gray-600 whitespace-nowrap">
+            직원 : <span className="font-medium text-gray-900">{staff.name}</span>
+          </span>
           <button
             type="button"
             onClick={logout}
