@@ -1,4 +1,4 @@
-import type { Visit } from '../types';
+import type { PackageTicketLine, Visit } from '../types';
 
 /** 기존 데이터(이름만 저장) 호환용 */
 const LEGACY_PACKAGES: Record<string, { price: number; items: string }> = {
@@ -38,4 +38,37 @@ export function getPackageDisplay(visit: Pick<Visit, 'packageName' | 'packageDet
   }
 
   return { title, items: '', price: 0 };
+}
+
+/** 영수증 모달용 티켓 목록 (저장된 JSON 우선, 없으면 기존 필드로 복원) */
+export function getPackageTickets(
+  visit: Pick<Visit, 'packageName' | 'packageDetail' | 'packagePrice' | 'packageTickets'>,
+): PackageTicketLine[] {
+  if (visit.packageTickets?.length) {
+    return visit.packageTickets.map((t) => ({ ...t }));
+  }
+
+  const display = getPackageDisplay(visit);
+  if (!display) return [];
+
+  const parts = display.items
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (parts.length > 1) {
+    return parts.map((label) => ({ label, price: 0 }));
+  }
+
+  return [
+    {
+      label: display.title,
+      sub: display.items || undefined,
+      price: display.price,
+    },
+  ];
+}
+
+export function sumTicketPrices(tickets: PackageTicketLine[]): number {
+  return tickets.reduce((sum, t) => sum + (Number.isFinite(t.price) ? t.price : 0), 0);
 }

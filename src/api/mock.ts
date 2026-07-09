@@ -2,6 +2,7 @@ import type {
   CalendarDay,
   ImageType,
   InbodyRecord,
+  PackageTicketLine,
   Patient,
   ProcedureTag,
   ProgressStats,
@@ -749,6 +750,7 @@ export interface PackageRegistrationInput {
   packageName: string;
   packageDetail?: string;
   packagePrice?: number;
+  packageTickets?: PackageTicketLine[];
 }
 
 /**
@@ -785,6 +787,7 @@ export function registerPackageToday(input: PackageRegistrationInput): Visit {
     visit.packageName = input.packageName;
     visit.packageDetail = input.packageDetail;
     visit.packagePrice = input.packagePrice;
+    visit.packageTickets = input.packageTickets?.map((t) => ({ ...t }));
     if (!visit.doctorNote) visit.doctorNote = `패키지 등록: ${input.packageName}`;
   } else {
     visit = {
@@ -806,6 +809,7 @@ export function registerPackageToday(input: PackageRegistrationInput): Visit {
       packageName: input.packageName,
       packageDetail: input.packageDetail,
       packagePrice: input.packagePrice,
+      packageTickets: input.packageTickets?.map((t) => ({ ...t })),
     };
     visits.push(visit);
   }
@@ -819,6 +823,35 @@ export function registerPackageToday(input: PackageRegistrationInput): Visit {
     await persistPatient(targetPatient);
     await persistVisit(targetVisit);
   }).catch((err) => console.error('[sync] 패키지 등록 저장 실패', err));
+
+  return visit;
+}
+
+export interface PackageUpdateInput {
+  packageName: string;
+  packageTickets: PackageTicketLine[];
+}
+
+/** 오늘 방문 리스트에서 패키지 영수증 수정 */
+export function updateVisitPackage(visitId: string, input: PackageUpdateInput): Visit | undefined {
+  const visit = visits.find((v) => v.id === visitId);
+  if (!visit) return undefined;
+
+  const tickets = input.packageTickets.map((t) => ({
+    label: t.label.trim(),
+    sub: t.sub?.trim() || undefined,
+    price: Number.isFinite(t.price) ? t.price : 0,
+  }));
+
+  visit.packageName = input.packageName.trim();
+  visit.packageTickets = tickets;
+  visit.packageDetail = tickets.map((t) => t.label).join(', ');
+  visit.packagePrice = tickets.reduce((sum, t) => sum + t.price, 0);
+  visit.enteredAt = nowFormatted();
+
+  void commitToServer('패키지 수정', async () => {
+    await persistVisit(visit);
+  }).catch((err) => console.error('[sync] 패키지 수정 저장 실패', err));
 
   return visit;
 }

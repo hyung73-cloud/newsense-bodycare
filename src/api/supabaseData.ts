@@ -1,6 +1,6 @@
 import { supabase, STORAGE_BUCKET, isSupabaseEnabled, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { resolveDisplayUrl, isPersistableMediaUrl, pickBestImage, isSampleOrBlobUrl } from '../lib/mediaUrl';
-import type { InbodyRecord, Patient, Visit, VisitImage } from '../types';
+import type { InbodyRecord, PackageTicketLine, Patient, Visit, VisitImage } from '../types';
 
 /* ──────────────────────────────────────────────
  * DB row 타입 (snake_case) ↔ 앱 타입 (camelCase) 매핑
@@ -39,6 +39,7 @@ interface VisitRow {
   package_name: string | null;
   package_detail: string | null;
   package_price: number | null;
+  package_tickets: string | null;
 }
 
 interface VisitImageRow {
@@ -130,6 +131,30 @@ function patientToRow(p: Patient): PatientRow {
   };
 }
 
+function parsePackageTickets(raw: string | null | undefined): PackageTicketLine[] | undefined {
+  if (!raw?.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return undefined;
+    const tickets = parsed
+      .filter(
+        (t): t is PackageTicketLine =>
+          !!t &&
+          typeof t === 'object' &&
+          typeof (t as PackageTicketLine).label === 'string' &&
+          typeof (t as PackageTicketLine).price === 'number',
+      )
+      .map((t) => ({
+        label: t.label,
+        sub: typeof t.sub === 'string' ? t.sub : undefined,
+        price: t.price,
+      }));
+    return tickets.length ? tickets : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function rowToVisit(r: VisitRow): Visit {
   return {
     id: r.id,
@@ -150,6 +175,7 @@ function rowToVisit(r: VisitRow): Visit {
     packageName: r.package_name ?? undefined,
     packageDetail: r.package_detail ?? undefined,
     packagePrice: r.package_price != null ? num(r.package_price) : undefined,
+    packageTickets: parsePackageTickets(r.package_tickets),
   };
 }
 
@@ -173,6 +199,7 @@ function visitToRow(v: Visit): VisitRow {
     package_name: v.packageName ?? null,
     package_detail: v.packageDetail ?? null,
     package_price: v.packagePrice ?? null,
+    package_tickets: v.packageTickets?.length ? JSON.stringify(v.packageTickets) : null,
   };
 }
 

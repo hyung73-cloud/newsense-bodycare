@@ -3,6 +3,7 @@ import { Camera, FileText, CheckCircle, XCircle, ChevronRight } from 'lucide-rea
 import { Link } from 'react-router-dom';
 import type { Patient, Visit, VisitStatus } from '../types';
 import { formatWon, getPackageDisplay } from '../lib/packageDisplay';
+import PackageReceiptModal from './PackageReceiptModal';
 
 const INITIAL_LIMIT = 5;
 
@@ -16,6 +17,7 @@ type FilterKey = 'all' | VisitStatus;
 interface TodayVisitTableProps {
   visits: TodayVisitRow[];
   className?: string;
+  onPackageUpdated?: () => void;
 }
 
 const filters: { key: FilterKey; label: string }[] = [
@@ -25,9 +27,10 @@ const filters: { key: FilterKey; label: string }[] = [
   { key: '미완료', label: '미완료' },
 ];
 
-export default function TodayVisitTable({ visits, className = '' }: TodayVisitTableProps) {
+export default function TodayVisitTable({ visits, className = '', onPackageUpdated }: TodayVisitTableProps) {
   const [expanded, setExpanded] = useState(false);
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [receiptVisit, setReceiptVisit] = useState<TodayVisitRow | null>(null);
 
   const counts: Record<FilterKey, number> = {
     all: visits.length,
@@ -134,8 +137,15 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
                     const pkg = getPackageDisplay(v);
                     if (!pkg) return <span className="text-gray-300 text-xs">-</span>;
                     return (
-                      <div className="space-y-0.5">
-                        <div className="text-[11px] font-semibold text-primary leading-snug">{pkg.title}</div>
+                      <button
+                        type="button"
+                        onClick={() => setReceiptVisit(v)}
+                        className="w-full text-left space-y-0.5 rounded-lg px-1.5 py-1 -mx-1.5 hover:bg-primary/5 transition-colors cursor-pointer group"
+                        title="패키지권 전체 영수증 보기"
+                      >
+                        <div className="text-[11px] font-semibold text-primary leading-snug group-hover:underline">
+                          {pkg.title}
+                        </div>
                         {pkg.items && (
                           <div className="text-[10px] text-gray-600 leading-relaxed break-words">
                             {pkg.items}
@@ -144,7 +154,7 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
                         {pkg.price > 0 && (
                           <div className="text-[11px] font-bold text-gray-900">{formatWon(pkg.price)}</div>
                         )}
-                      </div>
+                      </button>
                     );
                   })()}
                 </td>
@@ -171,6 +181,15 @@ export default function TodayVisitTable({ visits, className = '' }: TodayVisitTa
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
           </button>
         </div>
+      )}
+      {receiptVisit && (
+        <PackageReceiptModal
+          open
+          visit={receiptVisit}
+          patient={receiptVisit.patient}
+          onClose={() => setReceiptVisit(null)}
+          onSaved={onPackageUpdated}
+        />
       )}
     </div>
   );

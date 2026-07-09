@@ -229,6 +229,7 @@ export default function PackageSelectPage() {
       packageName: `${level.name} · ${level.subtitle}`,
       packageDetail: itemLabels,
       packagePrice: total,
+      packageTickets: tickets.map(({ label, sub, price }) => ({ label, sub, price })),
     });
     setPatientModalOpen(false);
     setIssued(true);

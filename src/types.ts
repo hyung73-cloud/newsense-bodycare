@@ -2,6 +2,13 @@ export type Sex = '여' | '남';
 export type VisitStatus = '완료' | '진행중' | '미완료';
 export type ImageType = 'front' | 'side';
 
+/** 패키지(시술권) 영수증 한 줄 */
+export interface PackageTicketLine {
+  label: string;
+  sub?: string;
+  price: number;
+}
+
 export interface Patient {
   id: string;
   chartNo: string;
@@ -35,6 +42,7 @@ export interface Visit {
   packageName?: string;
   packageDetail?: string;
   packagePrice?: number;
+  packageTickets?: PackageTicketLine[];
 }
 
 export interface VisitImage {

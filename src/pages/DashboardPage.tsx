@@ -195,7 +195,11 @@ export default function DashboardPage() {
               </div>
             </div>
             <div id="today-visit-table" className="flex-1 min-h-0 flex">
-              <TodayVisitTable visits={todayVisits} className="flex-1 min-h-0" />
+              <TodayVisitTable
+                visits={todayVisits}
+                className="flex-1 min-h-0"
+                onPackageUpdated={() => setRefreshKey((k) => k + 1)}
+              />
             </div>
           </div>
 
