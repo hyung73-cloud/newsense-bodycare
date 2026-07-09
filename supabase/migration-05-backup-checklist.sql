@@ -1,0 +1,17 @@
+-- ============================================================
+-- b4: 데이터 백업 체크리스트 (실행할 SQL 없음 — 안내용)
+-- ============================================================
+--
+-- [ ] 주 1회 — Table Editor → Export CSV
+--       patients, visits, visit_images, inbody_records, admins
+--
+-- [ ] 사진 업로드 테스트 후 visit_images.url 확인
+--       https://...supabase.co/storage/v1/object/public/uploads/...
+--
+-- [ ] Supabase Authentication → Users
+--       clinic@newsense.bodycare Last sign in 갱신 확인
+--
+-- [ ] 문제 발생 시: Settings → General → Restart project
+--       2분 대기 후 앱 "다시 시도"
+--
+-- ============================================================

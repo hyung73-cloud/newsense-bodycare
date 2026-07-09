@@ -342,12 +342,21 @@ export async function loadCriticalFromSupabase(timeoutMs = 8000): Promise<
   try {
     const result = await withTimeout(
       (async () => {
-        const [pRows, vRows] = await Promise.all([
-          restGet<PatientRow>('patients'),
-          restGet<VisitRow>('visits'),
-        ]);
+        const pRows = await restGet<PatientRow>('patients');
         const patients = pRows.map(rowToPatient);
         if (patients.length === 0) return { status: 'empty' as const };
+
+        let vRows: VisitRow[] = [];
+        try {
+          vRows = await restGet<VisitRow>('visits');
+        } catch (visitErr) {
+          const hasAuth =
+            typeof localStorage !== 'undefined' &&
+            localStorage.getItem('bodycare-auth-v1') === '1';
+          if (hasAuth) throw visitErr;
+          console.warn('[supabase] 방문 로드 실패 — 환자만 로드 (패키지 페이지)', visitErr);
+        }
+
         return {
           status: 'loaded' as const,
           data: {

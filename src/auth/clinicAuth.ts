@@ -93,3 +93,20 @@ export async function waitForAuthSession(timeoutMs = 5000): Promise<void> {
   }
   console.warn('[auth] 세션 대기 시간 초과 — 데이터 로드를 계속 시도합니다');
 }
+
+/** 관리자 설정 화면용 서버 인증 상태. */
+export async function getServerAuthStatus(): Promise<{
+  enabled: boolean;
+  signedIn: boolean;
+  email: string | null;
+}> {
+  if (!isClinicAuthEnabled() || !supabase) {
+    return { enabled: false, signedIn: false, email: null };
+  }
+  const { data } = await getSessionWithTimeout(3000);
+  return {
+    enabled: true,
+    signedIn: Boolean(data.session),
+    email: data.session?.user?.email ?? AUTH_EMAIL,
+  };
+}

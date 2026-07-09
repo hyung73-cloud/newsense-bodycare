@@ -44,9 +44,18 @@ create policy uploads_auth_all on storage.objects
   using (bucket_id = 'uploads')
   with check (bucket_id = 'uploads');
 
--- 패키지 공개 페이지용: anon은 visits INSERT만 허용 (패키지 등록)
+-- 패키지 공개 페이지용: anon 환자·방문 등록/조회/수정 (패키지 등록)
 create policy anon_visits_insert on visits
   for insert to anon
+  with check (true);
+
+create policy anon_visits_select on visits
+  for select to anon
+  using (true);
+
+create policy anon_visits_update on visits
+  for update to anon
+  using (true)
   with check (true);
 
 create policy anon_patients_insert on patients
@@ -57,7 +66,14 @@ create policy anon_patients_select on patients
   for select to anon
   using (true);
 
+create policy anon_patients_update on patients
+  for update to anon
+  using (true)
+  with check (true);
+
 -- ============================================================
--- 백업: Supabase 대시보드 → Database → Backups (무료 플랜: 수동 export)
--- Table Editor → 각 테이블 → Export CSV 주 1회 권장
+-- 백업 (b4): 주 1회 권장
+-- Table Editor → patients / visits / visit_images / inbody_records / admins
+--   → 각 테이블 우측 ... → Export CSV
+-- Storage → uploads 버킷 → 중요 사진 폴더 확인
 -- ============================================================

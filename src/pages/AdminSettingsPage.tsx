@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, ShieldCheck, ShieldAlert } from 'lucide-react';
 import TopNav from '../components/TopNav';
 import {
   getAdminAccounts,
@@ -9,6 +9,7 @@ import {
   type AdminAccount,
 } from '../auth/adminAuth';
 import { getStaff, setStaffName } from '../api/mock';
+import { getServerAuthStatus } from '../auth/clinicAuth';
 
 const STAFF_KEY = 'bodycare-staff-name-v1';
 
@@ -18,6 +19,15 @@ export default function AdminSettingsPage() {
   );
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [serverAuth, setServerAuth] = useState<{
+    enabled: boolean;
+    signedIn: boolean;
+    email: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    void getServerAuthStatus().then(setServerAuth);
+  }, []);
 
   const updateRow = (id: string, field: 'name' | 'pin', value: string) => {
     setAccounts((prev) =>
@@ -73,6 +83,35 @@ export default function AdminSettingsPage() {
             <ArrowLeft className="w-4 h-4" />
             대시보드
           </Link>
+        </div>
+
+        <div className="panel-card p-5">
+          <div className="flex items-start gap-3">
+            {serverAuth?.signedIn ? (
+              <ShieldCheck className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            ) : (
+              <ShieldAlert className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            )}
+            <div className="text-sm">
+              <h2 className="font-bold text-gray-900">서버 보안 연결</h2>
+              {serverAuth === null ? (
+                <p className="text-gray-500 mt-1">확인 중…</p>
+              ) : !serverAuth.enabled ? (
+                <p className="text-gray-500 mt-1">Supabase 미연결 (로컬 모드)</p>
+              ) : serverAuth.signedIn ? (
+                <p className="text-green-700 mt-1">
+                  로그인됨 — {serverAuth.email}
+                  <span className="block text-xs text-gray-500 mt-0.5">
+                    Supabase Authentication에서 Last sign in 갱신을 확인하세요.
+                  </span>
+                </p>
+              ) : (
+                <p className="text-amber-700 mt-1">
+                  서버 세션 없음 — 로그아웃 후 PIN으로 다시 로그인하세요.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="panel-card overflow-hidden">
