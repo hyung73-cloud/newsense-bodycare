@@ -188,22 +188,30 @@ export default function PatientProfilePage() {
     if (latestVisit) handleDelete(latestVisit);
   };
 
-  const handlePhotoUpload = (type: ImageType, file: File) => {
+  const handlePhotoUpload = async (type: ImageType, file: File) => {
     if (!latestVisit) return;
-    setVisitPhotoFile(latestVisit.id, type, file);
-    bump();
-    showToast(`${type === 'front' ? '정면' : '측면'} 사진이 업로드되었습니다.`);
+    try {
+      await setVisitPhotoFile(latestVisit.id, type, file);
+      bump();
+      showToast(`${type === 'front' ? '정면' : '측면'} 사진이 서버에 저장되었습니다.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : '사진 저장에 실패했습니다.');
+    }
   };
 
-  const handleInbodyFileUpload = (file: File) => {
+  const handleInbodyFileUpload = async (file: File) => {
     if (!latestVisit) {
       showToast('오늘 방문 기록이 없어 업로드할 수 없습니다.');
       return;
     }
-    setInbodySheetFile(latestVisit.id, file);
-    setInbodyModalOpen(false);
-    bump();
-    showToast('인바디 결과지가 업로드되었습니다.');
+    try {
+      await setInbodySheetFile(latestVisit.id, file);
+      setInbodyModalOpen(false);
+      bump();
+      showToast('인바디 결과지가 서버에 저장되었습니다.');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : '인바디 저장에 실패했습니다.');
+    }
   };
 
   return (

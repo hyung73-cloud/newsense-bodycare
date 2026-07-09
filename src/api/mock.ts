@@ -832,7 +832,7 @@ function assignObjectUrl(regKey: string, file: File): string {
   return url;
 }
 
-export function setVisitPhotoFile(visitId: string, type: ImageType, file: File): string {
+export async function setVisitPhotoFile(visitId: string, type: ImageType, file: File): Promise<string> {
   const url = assignObjectUrl(`photo-${visitId}-${type}`, file);
   const visit = visits.find((v) => v.id === visitId);
   let image = visitImages.find((img) => img.visitId === visitId && img.type === type);
@@ -856,32 +856,29 @@ export function setVisitPhotoFile(visitId: string, type: ImageType, file: File):
     recalcTodayStats();
   }
 
-  // 백그라운드로 스토리지 업로드 후 영구 URL로 교체 + DB 저장
   const img = image;
   if (isSupabaseEnabled) {
     const ext = file.name.split('.').pop() || 'jpg';
     const path = `photos/${visitId}/${type}-${Date.now()}.${ext}`;
-    void (async () => {
-      const uploaded = await uploadFile(path, file);
-      if (!uploaded) {
-        // 업로드 실패: 임시(blob) 주소를 DB에 저장하면 새로고침 시 깨지므로 저장하지 않는다.
-        console.error('[upload] 사진 스토리지 업로드 실패 — 영구 저장을 건너뜁니다.');
-        return;
-      }
-      img.url = uploaded.publicUrl;
-      await persistVisitImage(img, uploaded.path);
-      if (visit) {
-        await persistVisit(visit);
-        const patient = patients.find((p) => p.id === visit.patientId);
-        if (patient) await persistPatient(patient);
-      }
-    })();
+    const uploaded = await uploadFile(path, file);
+    if (!uploaded) {
+      console.error('[upload] 사진 스토리지 업로드 실패');
+      throw new Error('사진 서버 저장에 실패했습니다. 다시 시도해주세요.');
+    }
+    img.url = uploaded.publicUrl;
+    await persistVisitImage(img, uploaded.path);
+    if (visit) {
+      await persistVisit(visit);
+      const patient = patients.find((p) => p.id === visit.patientId);
+      if (patient) await persistPatient(patient);
+    }
+    saveDataCache();
   }
 
-  return url;
+  return img.url;
 }
 
-export function setInbodySheetFile(visitId: string, file: File): string {
+export async function setInbodySheetFile(visitId: string, file: File): Promise<string> {
   const url = assignObjectUrl(`inbody-${visitId}`, file);
   const visit = visits.find((v) => v.id === visitId);
   let inbody = inbodyRecords.find((r) => r.visitId === visitId);
@@ -911,19 +908,18 @@ export function setInbodySheetFile(visitId: string, file: File): string {
   if (isSupabaseEnabled && record) {
     const ext = file.name.split('.').pop() || 'jpg';
     const path = `inbody/${visitId}/sheet-${Date.now()}.${ext}`;
-    void (async () => {
-      const uploaded = await uploadFile(path, file);
-      if (!uploaded) {
-        console.error('[upload] 인바디 스토리지 업로드 실패 — 영구 저장을 건너뜁니다.');
-        return;
-      }
-      record.sheetImageUrl = uploaded.publicUrl;
-      await persistInbody(record, uploaded.path);
-      if (visit) await persistVisit(visit);
-    })();
+    const uploaded = await uploadFile(path, file);
+    if (!uploaded) {
+      console.error('[upload] 인바디 스토리지 업로드 실패');
+      throw new Error('인바디 서버 저장에 실패했습니다. 다시 시도해주세요.');
+    }
+    record.sheetImageUrl = uploaded.publicUrl;
+    await persistInbody(record, uploaded.path);
+    if (visit) await persistVisit(visit);
+    saveDataCache();
   }
 
-  return url;
+  return record?.sheetImageUrl ?? url;
 }
 
 export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visit | undefined {
@@ -1193,18 +1189,20 @@ async function doInit(): Promise<void> {
   if (result.status === 'loaded') {
     replaceArray(patients, result.data.patients);
     replaceArray(visits, result.data.visits);
+    // 서버 데이터 로드 시 샘플 사진/인바디 제거 (잘못된 표시 방지)
+    replaceArray(visitImages, []);
+    replaceArray(inbodyRecords, []);
     recalcTodayStats();
+
+    const secondary = await loadSecondaryFromSupabase(8000);
+    if (secondary) {
+      replaceArray(visitImages, secondary.visitImages);
+      replaceArray(inbodyRecords, secondary.inbodyRecords);
+    }
+
     offlineMode = false;
     allowCacheWrite = true;
     saveDataCache();
-
-    void loadSecondaryFromSupabase(8000).then((secondary) => {
-      if (secondary) {
-        replaceArray(visitImages, secondary.visitImages);
-        replaceArray(inbodyRecords, secondary.inbodyRecords);
-        saveDataCache();
-      }
-    });
     return;
   }
 

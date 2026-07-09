@@ -75,7 +75,7 @@ export default function App() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-surface text-gray-500">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
         <p className="text-sm">{loadingPhase}</p>
-        <p className="text-xs text-gray-400 mt-2">최초 접속 시 서버 깨우기에 10초 걸릴 수 있습니다</p>
+        <p className="text-xs text-gray-400 mt-2">환자·사진·인바디 데이터를 불러오는 중입니다</p>
       </div>
     );
   }
