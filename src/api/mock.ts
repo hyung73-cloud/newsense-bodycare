@@ -12,6 +12,7 @@ import type {
   VisitImage,
 } from '../types';
 import { isSupabaseEnabled } from '../lib/supabase';
+import { runServerCommit, markLocalSynced } from './syncEngine';
 import {
   loadCriticalFromSupabase,
   loadSecondaryFromSupabase,
@@ -23,6 +24,26 @@ import {
   persistInbody,
   uploadFile,
 } from './supabaseData';
+
+export { getSyncState, subscribeSync } from './syncEngine';
+export type { SyncState, SyncStatus } from './syncEngine';
+
+/** 변경 내용을 서버에 저장하고 로컬 캐시도 갱신한다. */
+async function commitToServer(label: string, fn: () => Promise<void>): Promise<void> {
+  allowCacheWrite = true;
+  if (!isSupabaseEnabled) {
+    saveDataCache();
+    markLocalSynced(label);
+    return;
+  }
+  try {
+    await runServerCommit(label, fn);
+    saveDataCache();
+  } catch (err) {
+    saveDataCache();
+    throw err;
+  }
+}
 
 const PLACEHOLDER_FRONT =
   'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200&h=280&fit=crop&crop=center';
@@ -512,9 +533,11 @@ export function hideVisit(visitId: string): void {
     visit.hidden = true;
     syncPatientStats(visit.patientId);
     recalcTodayStats();
-    persistVisit(visit);
-    const patient = patients.find((p) => p.id === visit.patientId);
-    if (patient) persistPatient(patient);
+    void commitToServer('방문 숨김', async () => {
+      await persistVisit(visit);
+      const patient = patients.find((p) => p.id === visit.patientId);
+      if (patient) await persistPatient(patient);
+    }).catch((err) => console.error('[sync] 방문 숨김 저장 실패', err));
   }
 }
 
@@ -595,15 +618,15 @@ export function addVisitToday(patientId: string, data: VisitFormData): Visit {
   recalcTodayStats();
 
   const patient = patients.find((p) => p.id === patientId);
-  void (async () => {
-    if (patient) await persistPatient(patient); // FK: 환자 먼저
-    await persistVisit(visit); // FK: 방문 다음
+  void commitToServer('방문 추가', async () => {
+    if (patient) await persistPatient(patient);
+    await persistVisit(visit);
     await Promise.all([
       persistVisitImage(frontImg),
       persistVisitImage(sideImg),
       persistInbody(inbody),
     ]);
-  })();
+  }).catch((err) => console.error('[sync] 방문 추가 저장 실패', err));
 
   return visit;
 }
@@ -783,10 +806,10 @@ export function registerPackageToday(input: PackageRegistrationInput): Visit {
 
   const targetPatient = patient;
   const targetVisit = visit;
-  void (async () => {
+  void commitToServer('패키지 등록', async () => {
     await persistPatient(targetPatient);
     await persistVisit(targetVisit);
-  })();
+  }).catch((err) => console.error('[sync] 패키지 등록 저장 실패', err));
 
   return visit;
 }
@@ -815,12 +838,14 @@ export function markLatestVisitInbodyUploaded(patientId: string): boolean {
   }
 
   recalcTodayStats();
-  void persistVisit(visit);
-  void persistInbody(inbody);
+  void commitToServer('인바디 완료', async () => {
+    await persistVisit(visit);
+    await persistInbody(inbody!);
+  }).catch((err) => console.error('[sync] 인바디 완료 저장 실패', err));
   return true;
 }
 
-/* ── 브라우저 임시 업로드 (백엔드 없음, 새로고침 시 초기화) ── */
+/* ── 파일 업로드 (스토리지 + DB 영구 저장) ── */
 
 const objectUrlRegistry = new Map<string, string>();
 
@@ -858,21 +883,19 @@ export async function setVisitPhotoFile(visitId: string, type: ImageType, file: 
 
   const img = image;
   if (isSupabaseEnabled) {
-    const ext = file.name.split('.').pop() || 'jpg';
-    const path = `photos/${visitId}/${type}-${Date.now()}.${ext}`;
-    const uploaded = await uploadFile(path, file);
-    if (!uploaded) {
-      console.error('[upload] 사진 스토리지 업로드 실패');
-      throw new Error('사진 서버 저장에 실패했습니다. 다시 시도해주세요.');
-    }
-    img.url = uploaded.publicUrl;
-    await persistVisitImage(img, uploaded.path);
-    if (visit) {
-      await persistVisit(visit);
-      const patient = patients.find((p) => p.id === visit.patientId);
-      if (patient) await persistPatient(patient);
-    }
-    saveDataCache();
+    await commitToServer(`${type === 'front' ? '정면' : '측면'} 사진 저장`, async () => {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `photos/${visitId}/${type}-${Date.now()}.${ext}`;
+      const uploaded = await uploadFile(path, file);
+      if (!uploaded) throw new Error('사진 서버 저장에 실패했습니다. 다시 시도해주세요.');
+      img.url = uploaded.publicUrl;
+      await persistVisitImage(img, uploaded.path);
+      if (visit) {
+        await persistVisit(visit);
+        const p = patients.find((x) => x.id === visit.patientId);
+        if (p) await persistPatient(p);
+      }
+    });
   }
 
   return img.url;
@@ -906,17 +929,15 @@ export async function setInbodySheetFile(visitId: string, file: File): Promise<s
 
   const record = inbody;
   if (isSupabaseEnabled && record) {
-    const ext = file.name.split('.').pop() || 'jpg';
-    const path = `inbody/${visitId}/sheet-${Date.now()}.${ext}`;
-    const uploaded = await uploadFile(path, file);
-    if (!uploaded) {
-      console.error('[upload] 인바디 스토리지 업로드 실패');
-      throw new Error('인바디 서버 저장에 실패했습니다. 다시 시도해주세요.');
-    }
-    record.sheetImageUrl = uploaded.publicUrl;
-    await persistInbody(record, uploaded.path);
-    if (visit) await persistVisit(visit);
-    saveDataCache();
+    await commitToServer('인바디 저장', async () => {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `inbody/${visitId}/sheet-${Date.now()}.${ext}`;
+      const uploaded = await uploadFile(path, file);
+      if (!uploaded) throw new Error('인바디 서버 저장에 실패했습니다. 다시 시도해주세요.');
+      record.sheetImageUrl = uploaded.publicUrl;
+      await persistInbody(record, uploaded.path);
+      if (visit) await persistVisit(visit);
+    });
   }
 
   return record?.sheetImageUrl ?? url;
@@ -946,11 +967,14 @@ export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visi
   syncPatientStats(visit.patientId);
   recalcTodayStats();
 
-  void persistVisit(visit);
-  imgs.forEach((img) => void persistVisitImage(img));
-  if (inbody) void persistInbody(inbody);
   const patient = patients.find((p) => p.id === visit.patientId);
-  if (patient) void persistPatient(patient);
+
+  void commitToServer('방문 수정', async () => {
+    await persistVisit(visit);
+    await Promise.all(imgs.map((img) => persistVisitImage(img)));
+    if (inbody) await persistInbody(inbody);
+    if (patient) await persistPatient(patient);
+  }).catch((err) => console.error('[sync] 방문 수정 저장 실패', err));
 
   return visit;
 }

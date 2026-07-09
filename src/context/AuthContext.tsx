@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { useLocation, useNavigate } from 'react-router-dom';
 import PinLoginGate from '../components/PinLoginGate';
 import { getDefaultAdminName } from '../auth/adminAuth';
+import { signInClinic, signOutClinic, restoreClinicSession, isClinicAuthEnabled } from '../auth/clinicAuth';
 import { setStaffName } from '../api/mock';
 
 const AUTH_KEY = 'bodycare-auth-v1';
@@ -33,11 +34,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const savedAuth = localStorage.getItem(AUTH_KEY) === '1';
     const savedStaff = localStorage.getItem(STAFF_KEY);
     if (savedStaff) setStaffName(savedStaff);
+    if (savedAuth && isClinicAuthEnabled()) {
+      void restoreClinicSession().finally(() => {
+        setAuthenticated(savedAuth);
+        setBooting(false);
+      });
+      return;
+    }
     setAuthenticated(savedAuth);
     setBooting(false);
   }, []);
 
-  const login = (adminName: string) => {
+  const login = async (adminName: string, pin: string) => {
+    if (isClinicAuthEnabled()) await signInClinic(pin);
     setStaffName(adminName);
     localStorage.setItem(STAFF_KEY, adminName);
     localStorage.setItem(AUTH_KEY, '1');
@@ -46,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    void signOutClinic();
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(STAFF_KEY);
     setStaffName(getDefaultAdminName());

@@ -387,25 +387,25 @@ export async function seedToSupabase(data: LoadedData): Promise<void> {
 export async function persistPatient(p: Patient): Promise<void> {
   if (!isSupabaseEnabled || !supabase) return;
   const { error } = await supabase.from('patients').upsert(patientToRow(p));
-  if (error) console.error('[supabase] 환자 저장 실패', error);
+  if (error) throw error;
 }
 
 export async function persistVisit(v: Visit): Promise<void> {
   if (!isSupabaseEnabled || !supabase) return;
   const { error } = await supabase.from('visits').upsert(visitToRow(v));
-  if (error) console.error('[supabase] 방문 저장 실패', error);
+  if (error) throw error;
 }
 
 export async function persistVisitImage(img: VisitImage, storagePath?: string): Promise<void> {
   if (!isSupabaseEnabled || !supabase) return;
   const { error } = await supabase.from('visit_images').upsert(imageToRow(img, storagePath));
-  if (error) console.error('[supabase] 이미지 저장 실패', error);
+  if (error) throw error;
 }
 
 export async function persistInbody(rec: InbodyRecord, storagePath?: string): Promise<void> {
   if (!isSupabaseEnabled || !supabase) return;
   const { error } = await supabase.from('inbody_records').upsert(inbodyToRow(rec, storagePath));
-  if (error) console.error('[supabase] 인바디 저장 실패', error);
+  if (error) throw error;
 }
 
 /* ──────────────────────────────────────────────
@@ -453,21 +453,28 @@ export async function persistAdmins(accounts: AdminRecord[]): Promise<boolean> {
  * 파일 업로드 (Storage)
  * ────────────────────────────────────────────── */
 
-/** 파일을 스토리지에 업로드하고 { publicUrl, path } 반환. 실패 시 null. */
+/** 파일을 스토리지에 업로드 (최대 3회 재시도). */
 export async function uploadFile(
   path: string,
   file: File,
+  maxRetries = 2,
 ): Promise<{ publicUrl: string; path: string } | null> {
   if (!isSupabaseEnabled || !supabase) return null;
-  try {
-    const { error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(path, file, { upsert: true, cacheControl: '3600' });
-    if (error) throw error;
-    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-    return { publicUrl: data.publicUrl, path };
-  } catch (err) {
-    console.error('[supabase] 파일 업로드 실패', err);
-    return null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const { error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(path, file, { upsert: true, cacheControl: '3600' });
+      if (error) throw error;
+      const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+      return { publicUrl: data.publicUrl, path };
+    } catch (err) {
+      console.error(`[supabase] 파일 업로드 실패 (${attempt + 1}/${maxRetries + 1})`, err);
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+      }
+    }
   }
+  return null;
 }

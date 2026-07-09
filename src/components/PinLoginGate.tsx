@@ -6,7 +6,7 @@ const NATURE_BG =
   'https://images.unsplash.com/photo-1518020382113-a7e8c38c541f?w=1920&h=1080&fit=crop&q=80';
 
 interface PinLoginGateProps {
-  onLogin: (adminName: string) => void;
+  onLogin: (adminName: string, pin: string) => Promise<void>;
 }
 
 export default function PinLoginGate({ onLogin }: PinLoginGateProps) {
@@ -16,8 +16,9 @@ export default function PinLoginGate({ onLogin }: PinLoginGateProps) {
   const [adminName, setAdminName] = useState(defaultName);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pin.length !== 6) {
       setError('PIN 번호는 6자리로 입력해주세요.');
@@ -32,7 +33,14 @@ export default function PinLoginGate({ onLogin }: PinLoginGateProps) {
       return;
     }
     setError('');
-    onLogin(adminName.trim());
+    setSubmitting(true);
+    try {
+      await onLogin(adminName.trim(), pin);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '로그인에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -91,8 +99,8 @@ export default function PinLoginGate({ onLogin }: PinLoginGateProps) {
 
             {error && <p className="text-xs text-red-500">{error}</p>}
 
-            <button type="submit" className="btn-primary w-full">
-              로그인
+            <button type="submit" disabled={submitting} className="btn-primary w-full disabled:opacity-50">
+              {submitting ? '로그인 중…' : '로그인'}
             </button>
           </form>
         </div>

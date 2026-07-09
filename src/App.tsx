@@ -9,6 +9,7 @@ import { initAdmins } from './auth/adminAuth';
 import { getLastLoadErrorMessage } from './api/supabaseData';
 import { useAuth } from './context/AuthContext';
 import OfflineBanner from './components/OfflineBanner';
+import SyncBanner from './components/SyncBanner';
 
 export default function App() {
   const { logout } = useAuth();
@@ -145,6 +146,7 @@ export default function App() {
   return (
     <>
       {offline && <OfflineBanner onRetry={() => void handleRetry()} retrying={retrying} />}
+      {!offline && <SyncBanner />}
       <Routes>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/patient/:id" element={<PatientProfilePage />} />
