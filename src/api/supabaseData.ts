@@ -218,37 +218,67 @@ export type LoadResult =
  * 중요: 실패(error)와 빈 DB(empty)를 반드시 구분한다.
  *       실패를 빈 DB로 오인해 시드하면 실제 데이터를 덮어쓰는 사고가 난다.
  */
-export async function loadAllFromSupabase(): Promise<LoadResult> {
+let lastLoadErrorMessage: string | null = null;
+
+/** 마지막 로드 실패 메시지 (오류 화면 안내용). */
+export function getLastLoadErrorMessage(): string | null {
+  return lastLoadErrorMessage;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function loadAllOnce(): Promise<LoadResult> {
   if (!isSupabaseEnabled || !supabase) return { status: 'error' };
-  try {
-    const [pRes, vRes, iRes, bRes] = await Promise.all([
-      supabase.from('patients').select('*'),
-      supabase.from('visits').select('*'),
-      supabase.from('visit_images').select('*'),
-      supabase.from('inbody_records').select('*'),
-    ]);
 
-    if (pRes.error) throw pRes.error;
-    if (vRes.error) throw vRes.error;
-    if (iRes.error) throw iRes.error;
-    if (bRes.error) throw bRes.error;
+  const [pRes, vRes, iRes, bRes] = await Promise.all([
+    supabase.from('patients').select('*'),
+    supabase.from('visits').select('*'),
+    supabase.from('visit_images').select('*'),
+    supabase.from('inbody_records').select('*'),
+  ]);
 
-    const patients = (pRes.data as PatientRow[]).map(rowToPatient);
-    if (patients.length === 0) return { status: 'empty' };
+  if (pRes.error) throw pRes.error;
+  if (vRes.error) throw vRes.error;
+  if (iRes.error) throw iRes.error;
+  if (bRes.error) throw bRes.error;
 
-    return {
-      status: 'loaded',
-      data: {
-        patients,
-        visits: (vRes.data as VisitRow[]).map(rowToVisit),
-        visitImages: (iRes.data as VisitImageRow[]).map(rowToImage),
-        inbodyRecords: (bRes.data as InbodyRow[]).map(rowToInbody),
-      },
-    };
-  } catch (err) {
-    console.error('[supabase] 데이터 로드 실패 — 시드/덮어쓰기를 하지 않습니다.', err);
+  const patients = (pRes.data as PatientRow[]).map(rowToPatient);
+  if (patients.length === 0) return { status: 'empty' };
+
+  return {
+    status: 'loaded',
+    data: {
+      patients,
+      visits: (vRes.data as VisitRow[]).map(rowToVisit),
+      visitImages: (iRes.data as VisitImageRow[]).map(rowToImage),
+      inbodyRecords: (bRes.data as InbodyRow[]).map(rowToInbody),
+    },
+  };
+}
+
+/** Supabase에서 전체 데이터를 읽는다. 일시 장애 대비 최대 3회 재시도. */
+export async function loadAllFromSupabase(maxRetries = 3): Promise<LoadResult> {
+  if (!isSupabaseEnabled || !supabase) {
+    lastLoadErrorMessage = 'Supabase 환경변수가 설정되지 않았습니다.';
     return { status: 'error' };
   }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await loadAllOnce();
+      lastLoadErrorMessage = null;
+      return result;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      lastLoadErrorMessage = msg;
+      console.error(`[supabase] 데이터 로드 실패 (${attempt}/${maxRetries}) — 시드/덮어쓰기 안 함`, err);
+      if (attempt < maxRetries) await sleep(1000 * attempt);
+    }
+  }
+
+  return { status: 'error' };
 }
 
 /** 최초 실행 시 현재 in-memory 샘플 데이터를 DB에 채운다. */

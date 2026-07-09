@@ -1066,6 +1066,14 @@ export function hasDataLoadError(): boolean {
   return dataLoadFailed;
 }
 
+/** 로드 실패 후 재시도. 성공 시 true. */
+export async function retryInitData(): Promise<boolean> {
+  initPromise = null;
+  dataLoadFailed = false;
+  await doInit();
+  return !dataLoadFailed;
+}
+
 async function doInit(): Promise<void> {
   if (!isSupabaseEnabled) return;
 
