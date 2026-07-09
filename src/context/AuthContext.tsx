@@ -31,24 +31,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isPublicRoute = PUBLIC_PATH_PREFIXES.some((p) => location.pathname.startsWith(p));
 
   useEffect(() => {
+    let cancelled = false;
     const savedAuth = localStorage.getItem(AUTH_KEY) === '1';
     const savedStaff = localStorage.getItem(STAFF_KEY);
     if (savedStaff) setStaffName(savedStaff);
+
+    const finishBoot = () => {
+      if (!cancelled) setBooting(false);
+    };
+
+    const bootTimeout = window.setTimeout(finishBoot, 6000);
+
     if (savedAuth && isClinicAuthEnabled()) {
-      void restoreClinicSession().then((hasSession) => {
-        if (!hasSession) {
+      void restoreClinicSession()
+        .then((hasSession) => {
+          if (!hasSession) {
+            localStorage.removeItem(AUTH_KEY);
+            setAuthenticated(false);
+          } else {
+            resetInitPromise();
+            setAuthenticated(true);
+          }
+        })
+        .catch(() => {
           localStorage.removeItem(AUTH_KEY);
           setAuthenticated(false);
-        } else {
-          resetInitPromise();
-          setAuthenticated(true);
-        }
-        setBooting(false);
-      });
-      return;
+        })
+        .finally(() => {
+          window.clearTimeout(bootTimeout);
+          finishBoot();
+        });
+      return () => {
+        cancelled = true;
+        window.clearTimeout(bootTimeout);
+      };
     }
+
+    window.clearTimeout(bootTimeout);
     setAuthenticated(savedAuth);
-    setBooting(false);
+    finishBoot();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (adminName: string, pin: string) => {
@@ -71,7 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   if (booting) {
-    return <div className="min-h-screen bg-surface" />;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-surface text-gray-500">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-sm">앱 준비 중…</p>
+      </div>
+    );
   }
 
   if (!authenticated && !isPublicRoute) {

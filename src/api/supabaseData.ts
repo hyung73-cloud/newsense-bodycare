@@ -291,7 +291,13 @@ type SecondaryData = { visitImages: VisitImage[]; inbodyRecords: InbodyRecord[] 
 async function getRestAuthHeaders(): Promise<Record<string, string>> {
   let bearer = supabaseAnonKey as string;
   if (supabase) {
-    const { data } = await supabase.auth.getSession();
+    const sessionPromise = supabase.auth.getSession();
+    const { data } = await Promise.race([
+      sessionPromise,
+      new Promise<Awaited<typeof sessionPromise>>((resolve) =>
+        setTimeout(() => resolve({ data: { session: null }, error: null }), 3000),
+      ),
+    ]);
     if (data.session?.access_token) bearer = data.session.access_token;
   }
   return {

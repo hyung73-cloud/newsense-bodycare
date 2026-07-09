@@ -1245,9 +1245,9 @@ async function doInit(): Promise<void> {
   if (!isSupabaseEnabled) return;
 
   initStartedAt = Date.now();
-  await waitForAuthSession(10000);
+  await waitForAuthSession(5000);
 
-  const result = await loadCriticalFromSupabase(12000);
+  const result = await loadCriticalFromSupabase(10000);
 
   if (result.status === 'empty') {
     if (!shouldApplyInitData()) return;
@@ -1263,14 +1263,23 @@ async function doInit(): Promise<void> {
     if (!shouldApplyInitData()) return;
     replaceArray(patients, result.data.patients);
     replaceArray(visits, result.data.visits);
-
-    const secondary = await loadSecondaryFromSupabase(15000, 3);
-    applySecondaryOrCache(secondary);
-
     recalcTodayStats();
     offlineMode = false;
     allowCacheWrite = true;
     saveDataCache();
+
+    // 사진·인바디는 화면을 막지 않고 백그라운드 로드
+    void loadSecondaryFromSupabase(12000, 2).then((secondary) => {
+      if (!secondary) {
+        applySecondaryOrCache(null);
+        saveDataCache();
+        return;
+      }
+      if (!shouldApplyInitData()) return;
+      replaceArray(visitImages, secondary.visitImages);
+      replaceArray(inbodyRecords, secondary.inbodyRecords);
+      saveDataCache();
+    });
     return;
   }
 
