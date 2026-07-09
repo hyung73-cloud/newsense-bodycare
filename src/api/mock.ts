@@ -660,6 +660,8 @@ function recalcTodayStats(): void {
   progressStats.completed = list.filter((v) => v.status === '완료').length;
   progressStats.inProgress = list.filter((v) => v.status === '진행중').length;
   progressStats.incomplete = list.filter((v) => v.status === '미완료').length;
+
+  if (allowCacheWrite) saveDataCache();
 }
 
 function prependRecentMemo(patient: Patient, summary: string): void {
@@ -1060,8 +1062,82 @@ function replaceArray<T>(target: T[], next: T[]): void {
 
 let initPromise: Promise<void> | null = null;
 
+const DATA_CACHE_KEY = 'bodycare-data-cache-v1';
+
+interface DataCachePayload {
+  patients: Patient[];
+  visits: Visit[];
+  visitImages: VisitImage[];
+  inbodyRecords: InbodyRecord[];
+  savedAt: string;
+}
+
 /** 로드 실패로 mock(샘플) 데이터를 표시 중인지 여부. true면 쓰기를 막아 DB 오염 방지. */
 let dataLoadFailed = false;
+/** 서버 연결 실패 후 로컬 캐시로 동작 중인지. */
+let offlineMode = false;
+let allowCacheWrite = false;
+
+function saveDataCache(): void {
+  try {
+    const payload: DataCachePayload = {
+      patients: [...patients],
+      visits: [...visits],
+      visitImages: [...visitImages],
+      inbodyRecords: [...inbodyRecords],
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(payload));
+  } catch (err) {
+    console.warn('[cache] 로컬 저장 실패', err);
+  }
+}
+
+function loadDataCache(): DataCachePayload | null {
+  try {
+    const raw = localStorage.getItem(DATA_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DataCachePayload;
+    if (!Array.isArray(parsed.patients) || parsed.patients.length === 0) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function applyDataCache(payload: DataCachePayload): void {
+  replaceArray(patients, payload.patients);
+  replaceArray(visits, payload.visits);
+  replaceArray(visitImages, payload.visitImages ?? []);
+  replaceArray(inbodyRecords, payload.inbodyRecords ?? []);
+  recalcTodayStats();
+}
+
+/** 서버 연결 실패 후 로컬 캐시 사용 중인지. */
+export function isOfflineMode(): boolean {
+  return offlineMode;
+}
+
+/** 로컬 캐시 저장 시각 (ISO 문자열). */
+export function getOfflineCacheTime(): string | null {
+  return loadDataCache()?.savedAt ?? null;
+}
+
+/** 로컬 캐시가 있는지 (오프라인 폴백 가능 여부). */
+export function hasLocalDataCache(): boolean {
+  return loadDataCache() !== null;
+}
+
+/** 서버 연결 없이 로컬 캐시만으로 앱 시작. */
+export function activateLocalCache(): boolean {
+  const cache = loadDataCache();
+  if (!cache) return false;
+  applyDataCache(cache);
+  offlineMode = true;
+  dataLoadFailed = false;
+  allowCacheWrite = true;
+  return true;
+}
 
 /** Supabase 로드 실패 여부 (실패 시 앱은 편집을 막고 재시도 화면을 보여준다). */
 export function hasDataLoadError(): boolean {
@@ -1077,6 +1153,8 @@ export async function retryInitData(): Promise<boolean> {
   if (result.status === 'empty') {
     await seedToSupabase({ patients, visits, visitImages, inbodyRecords });
     recalcTodayStats();
+    allowCacheWrite = true;
+    saveDataCache();
     return true;
   }
   if (result.status === 'loaded') {
@@ -1085,7 +1163,14 @@ export async function retryInitData(): Promise<boolean> {
     replaceArray(visitImages, result.data.visitImages);
     replaceArray(inbodyRecords, result.data.inbodyRecords);
     recalcTodayStats();
+    offlineMode = false;
+    allowCacheWrite = true;
+    saveDataCache();
     return true;
+  }
+  if (loadDataCache()) {
+    activateLocalCache();
+    return false;
   }
   dataLoadFailed = true;
   return false;
@@ -1094,12 +1179,14 @@ export async function retryInitData(): Promise<boolean> {
 async function doInit(): Promise<void> {
   if (!isSupabaseEnabled) return;
 
-  // 1단계: 환자·방문만 4초 이내 로드 → 대시보드 즉시 표시
-  const result = await loadCriticalFromSupabase(6000);
+  const result = await loadCriticalFromSupabase(8000);
 
   if (result.status === 'empty') {
     await seedToSupabase({ patients, visits, visitImages, inbodyRecords });
     recalcTodayStats();
+    offlineMode = false;
+    allowCacheWrite = true;
+    saveDataCache();
     return;
   }
 
@@ -1107,14 +1194,26 @@ async function doInit(): Promise<void> {
     replaceArray(patients, result.data.patients);
     replaceArray(visits, result.data.visits);
     recalcTodayStats();
+    offlineMode = false;
+    allowCacheWrite = true;
+    saveDataCache();
 
-    // 2단계: 사진·인바디는 백그라운드 로드 (앱 표시를 막지 않음)
     void loadSecondaryFromSupabase(8000).then((secondary) => {
       if (secondary) {
         replaceArray(visitImages, secondary.visitImages);
         replaceArray(inbodyRecords, secondary.inbodyRecords);
+        saveDataCache();
       }
     });
+    return;
+  }
+
+  const cache = loadDataCache();
+  if (cache) {
+    applyDataCache(cache);
+    offlineMode = true;
+    allowCacheWrite = true;
+    console.warn('[init] 서버 연결 실패 → 로컬 캐시 사용', cache.savedAt);
     return;
   }
 

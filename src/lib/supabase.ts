@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
+export { supabaseUrl, supabaseAnonKey };
+
 /**
  * Supabase 연결 여부.
  * 환경변수(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)가 모두 설정된 경우에만 true.

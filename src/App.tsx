@@ -4,23 +4,30 @@ import DashboardPage from './pages/DashboardPage';
 import PatientProfilePage from './pages/PatientProfilePage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
 import PackageSelectPage from './pages/PackageSelectPage';
-import { initData, hasDataLoadError, retryInitData } from './api/mock';
+import { initData, hasDataLoadError, retryInitData, isOfflineMode, hasLocalDataCache, activateLocalCache } from './api/mock';
 import { initAdmins } from './auth/adminAuth';
 import { getLastLoadErrorMessage } from './api/supabaseData';
 import { useAuth } from './context/AuthContext';
+import OfflineBanner from './components/OfflineBanner';
 
 export default function App() {
   const { logout } = useAuth();
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [offline, setOffline] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState('서버 연결 중…');
+
+  const syncState = () => {
+    setLoadError(hasDataLoadError());
+    setOffline(isOfflineMode());
+  };
 
   const runInit = async () => {
     setLoadingPhase('서버 연결 중…');
     await initData();
     void initAdmins();
-    setLoadError(hasDataLoadError());
+    syncState();
   };
 
   useEffect(() => {
@@ -31,10 +38,10 @@ export default function App() {
 
     const hardCap = setTimeout(() => {
       if (!cancelled) {
-        setLoadError(hasDataLoadError());
+        syncState();
         setReady(true);
       }
-    }, 12000);
+    }, 10000);
 
     runInit()
       .catch((err) => console.error('[init] 초기화 실패', err))
@@ -56,9 +63,8 @@ export default function App() {
     setRetrying(true);
     try {
       await Promise.all([retryInitData(), initAdmins()]);
-      const failed = hasDataLoadError();
-      setLoadError(failed);
-      if (!failed) setReady(true);
+      syncState();
+      if (!hasDataLoadError()) setReady(true);
     } finally {
       setRetrying(false);
     }
@@ -91,12 +97,16 @@ export default function App() {
             {detail}
           </p>
         )}
-        <ul className="text-xs text-gray-500 text-left mb-6 space-y-1 max-w-sm">
-          <li>1. 아래 <strong>다시 시도</strong>를 2~3번 눌러보세요 (서버가 깨어나면 됩니다)</li>
-          <li>2. 안 되면 <strong>로그아웃</strong> 후 다시 로그인해보세요</li>
-          <li>3. Supabase 대시보드에서 Success Rate가 낮으면 잠시 후 재시도</li>
+        <ul className="text-xs text-gray-500 text-left mb-6 space-y-1.5 max-w-sm">
+          <li>1. Supabase 대시보드 → <strong>Settings → General → Restart project</strong></li>
+          <li>2. 2분 기다린 후 아래 <strong>다시 시도</strong></li>
+          {hasLocalDataCache() ? (
+            <li>3. 또는 <strong>로컬 데이터로 계속</strong> (이전에 저장된 데이터)</li>
+          ) : (
+            <li>3. 이 브라우저에 저장된 데이터가 없어 서버 연결이 필요합니다</li>
+          )}
         </ul>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"
             disabled={retrying}
@@ -105,6 +115,21 @@ export default function App() {
           >
             {retrying ? '연결 중…' : '다시 시도'}
           </button>
+          {hasLocalDataCache() && (
+            <button
+              type="button"
+              onClick={() => {
+                if (activateLocalCache()) {
+                  setLoadError(false);
+                  setOffline(true);
+                  setReady(true);
+                }
+              }}
+              className="px-6 py-2.5 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600"
+            >
+              로컬 데이터로 계속
+            </button>
+          )}
           <button
             type="button"
             onClick={logout}
@@ -118,12 +143,15 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<DashboardPage />} />
-      <Route path="/patient/:id" element={<PatientProfilePage />} />
-      <Route path="/settings/admins" element={<AdminSettingsPage />} />
-      <Route path="/package" element={<PackageSelectPage />} />
-      <Route path="/bodycare-package" element={<PackageSelectPage />} />
-    </Routes>
+    <>
+      {offline && <OfflineBanner onRetry={() => void handleRetry()} retrying={retrying} />}
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/patient/:id" element={<PatientProfilePage />} />
+        <Route path="/settings/admins" element={<AdminSettingsPage />} />
+        <Route path="/package" element={<PackageSelectPage />} />
+        <Route path="/bodycare-package" element={<PackageSelectPage />} />
+      </Routes>
+    </>
   );
 }

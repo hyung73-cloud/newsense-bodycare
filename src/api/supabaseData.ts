@@ -1,4 +1,4 @@
-import { supabase, STORAGE_BUCKET, isSupabaseEnabled } from '../lib/supabase';
+import { supabase, STORAGE_BUCKET, isSupabaseEnabled, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import type { InbodyRecord, Patient, Visit, VisitImage } from '../types';
 
 /* ──────────────────────────────────────────────
@@ -258,49 +258,47 @@ function sleep(ms: number): Promise<void> {
 type CriticalData = { patients: Patient[]; visits: Visit[] };
 type SecondaryData = { visitImages: VisitImage[]; inbodyRecords: InbodyRecord[] };
 
-/** 무료 Supabase DB가 잠들어 있을 때 깨우는 워밍업 핑 (실패해도 계속 진행). */
-async function warmupSupabase(timeoutMs = 5000): Promise<void> {
-  if (!supabase) return;
-  try {
-    await withTimeout(
-      supabase.from('patients').select('id').limit(1),
-      timeoutMs,
-      '서버 연결',
-    );
-  } catch {
-    // 워밍업 실패 — 본 로드를 계속 시도
+/** REST API 직접 호출 (supabase-js 클라이언트보다 브라우저에서 안정적). */
+async function restGet<T>(table: string): Promise<T[]> {
+  const res = await fetch(`${supabaseUrl}/rest/v1/${table}?select=*`, {
+    headers: {
+      apikey: supabaseAnonKey as string,
+      Authorization: `Bearer ${supabaseAnonKey}`,
+      Accept: 'application/json',
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${table} HTTP ${res.status}: ${text.slice(0, 200)}`);
   }
+  return res.json() as Promise<T[]>;
 }
 
-/** 1단계: 환자·방문 로드 (워밍업 후, 6초 이내). */
-export async function loadCriticalFromSupabase(timeoutMs = 6000): Promise<
+/** 1단계: 환자·방문 로드 (8초 이내, REST 직접 호출). */
+export async function loadCriticalFromSupabase(timeoutMs = 8000): Promise<
   | { status: 'loaded'; data: CriticalData }
   | { status: 'empty' }
   | { status: 'error' }
 > {
-  if (!isSupabaseEnabled || !supabase) {
+  if (!isSupabaseEnabled || !supabaseUrl || !supabaseAnonKey) {
     lastLoadErrorMessage = 'Supabase 환경변수가 설정되지 않았습니다.';
     return { status: 'error' };
   }
 
-  await warmupSupabase(5000);
-
   try {
     const result = await withTimeout(
       (async () => {
-        const [pRes, vRes] = await Promise.all([
-          supabase!.from('patients').select('*'),
-          supabase!.from('visits').select('*'),
+        const [pRows, vRows] = await Promise.all([
+          restGet<PatientRow>('patients'),
+          restGet<VisitRow>('visits'),
         ]);
-        if (pRes.error) throw pRes.error;
-        if (vRes.error) throw vRes.error;
-        const patients = (pRes.data as PatientRow[]).map(rowToPatient);
+        const patients = pRows.map(rowToPatient);
         if (patients.length === 0) return { status: 'empty' as const };
         return {
           status: 'loaded' as const,
           data: {
             patients,
-            visits: (vRes.data as VisitRow[]).map(rowToVisit),
+            visits: vRows.map(rowToVisit),
           },
         };
       })(),
@@ -318,19 +316,17 @@ export async function loadCriticalFromSupabase(timeoutMs = 6000): Promise<
 
 /** 2단계: 사진·인바디는 백그라운드 로드 (실패해도 앱은 계속 사용). */
 export async function loadSecondaryFromSupabase(timeoutMs = 8000): Promise<SecondaryData | null> {
-  if (!isSupabaseEnabled || !supabase) return null;
+  if (!isSupabaseEnabled || !supabaseUrl || !supabaseAnonKey) return null;
   try {
     return await withTimeout(
       (async () => {
-        const [iRes, bRes] = await Promise.all([
-          supabase!.from('visit_images').select('*'),
-          supabase!.from('inbody_records').select('*'),
+        const [iRows, bRows] = await Promise.all([
+          restGet<VisitImageRow>('visit_images'),
+          restGet<InbodyRow>('inbody_records'),
         ]);
-        if (iRes.error) throw iRes.error;
-        if (bRes.error) throw bRes.error;
         return {
-          visitImages: (iRes.data as VisitImageRow[]).map(rowToImage),
-          inbodyRecords: (bRes.data as InbodyRow[]).map(rowToInbody),
+          visitImages: iRows.map(rowToImage),
+          inbodyRecords: bRows.map(rowToInbody),
         };
       })(),
       timeoutMs,
@@ -350,7 +346,7 @@ export async function loadAllFromSupabase(maxRetries = 1): Promise<LoadResult> {
   }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const critical = await loadCriticalFromSupabase(6000);
+    const critical = await loadCriticalFromSupabase(8000);
     if (critical.status === 'empty') return { status: 'empty' };
     if (critical.status === 'loaded') {
       const secondary = await loadSecondaryFromSupabase(4000);
