@@ -1095,7 +1095,7 @@ async function doInit(): Promise<void> {
   if (!isSupabaseEnabled) return;
 
   // 1단계: 환자·방문만 4초 이내 로드 → 대시보드 즉시 표시
-  const result = await loadCriticalFromSupabase(4000);
+  const result = await loadCriticalFromSupabase(6000);
 
   if (result.status === 'empty') {
     await seedToSupabase({ patients, visits, visitImages, inbodyRecords });

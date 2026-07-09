@@ -258,8 +258,22 @@ function sleep(ms: number): Promise<void> {
 type CriticalData = { patients: Patient[]; visits: Visit[] };
 type SecondaryData = { visitImages: VisitImage[]; inbodyRecords: InbodyRecord[] };
 
-/** 1단계: 환자·방문만 빠르게 로드 (대시보드 표시용, 4초 이내). */
-export async function loadCriticalFromSupabase(timeoutMs = 4000): Promise<
+/** 무료 Supabase DB가 잠들어 있을 때 깨우는 워밍업 핑 (실패해도 계속 진행). */
+async function warmupSupabase(timeoutMs = 5000): Promise<void> {
+  if (!supabase) return;
+  try {
+    await withTimeout(
+      supabase.from('patients').select('id').limit(1),
+      timeoutMs,
+      '서버 연결',
+    );
+  } catch {
+    // 워밍업 실패 — 본 로드를 계속 시도
+  }
+}
+
+/** 1단계: 환자·방문 로드 (워밍업 후, 6초 이내). */
+export async function loadCriticalFromSupabase(timeoutMs = 6000): Promise<
   | { status: 'loaded'; data: CriticalData }
   | { status: 'empty' }
   | { status: 'error' }
@@ -268,6 +282,9 @@ export async function loadCriticalFromSupabase(timeoutMs = 4000): Promise<
     lastLoadErrorMessage = 'Supabase 환경변수가 설정되지 않았습니다.';
     return { status: 'error' };
   }
+
+  await warmupSupabase(5000);
+
   try {
     const result = await withTimeout(
       (async () => {
@@ -333,7 +350,7 @@ export async function loadAllFromSupabase(maxRetries = 1): Promise<LoadResult> {
   }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const critical = await loadCriticalFromSupabase(4000);
+    const critical = await loadCriticalFromSupabase(6000);
     if (critical.status === 'empty') return { status: 'empty' };
     if (critical.status === 'loaded') {
       const secondary = await loadSecondaryFromSupabase(4000);
