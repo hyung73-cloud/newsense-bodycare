@@ -1,7 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+/** 환경변수 앞뒤 공백·줄바꿈 제거 (Cloudflare 붙여넣기 시 흔한 오류). */
+function cleanEnv(value: string | undefined): string | undefined {
+  const v = value?.trim();
+  return v || undefined;
+}
+
+const supabaseUrl = cleanEnv(import.meta.env.VITE_SUPABASE_URL as string | undefined);
+const supabaseAnonKey = cleanEnv(import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
 
 export { supabaseUrl, supabaseAnonKey };
 
