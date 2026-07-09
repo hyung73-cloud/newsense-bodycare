@@ -24,7 +24,10 @@ import {
   persistVisitImage,
   persistInbody,
   uploadFile,
+  dedupeVisitImages,
+  deleteOtherVisitImages,
 } from './supabaseData';
+import { isPersistableMediaUrl, isSampleOrBlobUrl, pickBestImage } from '../lib/mediaUrl';
 
 export { getSyncState, subscribeSync } from './syncEngine';
 export type { SyncState, SyncStatus } from './syncEngine';
@@ -512,7 +515,24 @@ export function getPreviousVisit(patientId: string): Visit | undefined {
 }
 
 export function getVisitImages(visitId: string, type: 'front' | 'side'): VisitImage | undefined {
-  return visitImages.find((img) => img.visitId === visitId && img.type === type);
+  const matches = visitImages.filter(
+    (img) => img.visitId === visitId && img.type === type && img.url && !isSampleOrBlobUrl(img.url),
+  );
+  if (matches.length === 0) return undefined;
+  return matches.reduce((best, img) => pickBestImage(best, img));
+}
+
+function visitImageId(visitId: string, type: ImageType): string {
+  return `img-${visitId}-${type}`;
+}
+
+function removeDuplicateVisitImagesInMemory(visitId: string, type: ImageType, keepId: string): void {
+  for (let i = visitImages.length - 1; i >= 0; i--) {
+    const img = visitImages[i];
+    if (img.visitId === visitId && img.type === type && img.id !== keepId) {
+      visitImages.splice(i, 1);
+    }
+  }
 }
 
 export function getInbodyRecordsByPatient(patientId: string): (InbodyRecord & { date: string })[] {
@@ -588,24 +608,6 @@ export function addVisitToday(patientId: string, data: VisitFormData): Visit {
   };
   visits.push(visit);
 
-  const frontImg: VisitImage = {
-    id: `img-${id}-f`,
-    visitId: id,
-    type: 'front',
-    url: PLACEHOLDER_FRONT,
-    weightKg: data.weightKg,
-    waistCm: data.waistCm,
-  };
-  const sideImg: VisitImage = {
-    id: `img-${id}-s`,
-    visitId: id,
-    type: 'side',
-    url: PLACEHOLDER_SIDE,
-    weightKg: data.weightKg,
-    waistCm: data.waistCm,
-  };
-  visitImages.push(frontImg, sideImg);
-
   const inbody: InbodyRecord = {
     visitId: id,
     weightKg: data.weightKg,
@@ -615,7 +617,7 @@ export function addVisitToday(patientId: string, data: VisitFormData): Visit {
     bmrKcal: 1178,
     abdominalFatRatio: 0.85,
     smi: 6.1,
-    sheetImageUrl: INBODY_SHEET,
+    sheetImageUrl: '',
   };
   inbodyRecords.push(inbody);
 
@@ -861,12 +863,22 @@ function assignObjectUrl(regKey: string, file: File): string {
 export async function setVisitPhotoFile(visitId: string, type: ImageType, file: File): Promise<string> {
   const url = assignObjectUrl(`photo-${visitId}-${type}`, file);
   const visit = visits.find((v) => v.id === visitId);
-  let image = visitImages.find((img) => img.visitId === visitId && img.type === type);
+  const canonicalId = visitImageId(visitId, type);
+
+  let image = visitImages.find((img) => img.id === canonicalId);
+  if (!image) {
+    const existing = visitImages.find((img) => img.visitId === visitId && img.type === type);
+    if (existing) {
+      existing.id = canonicalId;
+      image = existing;
+    }
+  }
   if (image) {
     image.url = url;
+    image.id = canonicalId;
   } else {
     image = {
-      id: `img-${visitId}-${type}-upload`,
+      id: canonicalId,
       visitId,
       type,
       url,
@@ -875,6 +887,8 @@ export async function setVisitPhotoFile(visitId: string, type: ImageType, file: 
     };
     visitImages.push(image);
   }
+  removeDuplicateVisitImagesInMemory(visitId, type, canonicalId);
+
   if (visit) {
     visit.photoUploaded = true;
     if (visit.status === '미완료') visit.status = '진행중';
@@ -891,6 +905,7 @@ export async function setVisitPhotoFile(visitId: string, type: ImageType, file: 
       if (!uploaded) throw new Error('사진 서버 저장에 실패했습니다. 다시 시도해주세요.');
       img.url = uploaded.publicUrl;
       await persistVisitImage(img, uploaded.path);
+      await deleteOtherVisitImages(visitId, type, canonicalId);
       if (visit) {
         await persistVisit(visit);
         const p = patients.find((x) => x.id === visit.patientId);
@@ -1065,7 +1080,7 @@ export function getRecentPatientCardData(patientId: string) {
   return {
     patient,
     visit,
-    imageUrl: frontImg?.url ?? PLACEHOLDER_FRONT,
+    imageUrl: frontImg?.url ?? '',
     weightKg: visit.weightKg,
     waistCm: visit.waistCm,
     bodyFatPct: visit.bodyFatPct,
@@ -1115,20 +1130,21 @@ function applySecondaryOrCache(secondary: SecondaryData | null): void {
   }
 
   if (secondary) {
-    replaceArray(visitImages, secondary.visitImages);
+    replaceArray(visitImages, dedupeVisitImages(secondary.visitImages));
     replaceArray(inbodyRecords, secondary.inbodyRecords);
     return;
   }
 
   const cache = loadDataCache();
   const visitIds = new Set(visits.map((v) => v.id));
-  const cachedImages =
+  const cachedImages = dedupeVisitImages(
     cache?.visitImages?.filter(
-      (img) => visitIds.has(img.visitId) && isPersistableUrl(img.url),
-    ) ?? [];
+      (img) => visitIds.has(img.visitId) && isPersistableMediaUrl(img.url),
+    ) ?? [],
+  );
   const cachedInbody =
     cache?.inbodyRecords?.filter(
-      (r) => visitIds.has(r.visitId) && isPersistableUrl(r.sheetImageUrl),
+      (r) => visitIds.has(r.visitId) && isPersistableMediaUrl(r.sheetImageUrl),
     ) ?? [];
   replaceArray(visitImages, cachedImages);
   replaceArray(inbodyRecords, cachedInbody);
@@ -1140,7 +1156,7 @@ function applySecondaryOrCache(secondary: SecondaryData | null): void {
 }
 
 function isPersistableUrl(url: string | undefined): boolean {
-  return Boolean(url && !url.startsWith('blob:'));
+  return isPersistableMediaUrl(url);
 }
 
 function saveDataCache(): void {
@@ -1173,8 +1189,16 @@ function loadDataCache(): DataCachePayload | null {
 function applyDataCache(payload: DataCachePayload): void {
   replaceArray(patients, payload.patients);
   replaceArray(visits, payload.visits);
-  replaceArray(visitImages, payload.visitImages ?? []);
-  replaceArray(inbodyRecords, payload.inbodyRecords ?? []);
+  replaceArray(
+    visitImages,
+    dedupeVisitImages(
+      (payload.visitImages ?? []).filter((img) => isPersistableMediaUrl(img.url)),
+    ),
+  );
+  replaceArray(
+    inbodyRecords,
+    (payload.inbodyRecords ?? []).filter((r) => isPersistableMediaUrl(r.sheetImageUrl)),
+  );
   recalcTodayStats();
 }
 
@@ -1229,7 +1253,7 @@ export async function retryInitData(): Promise<boolean> {
     if (!shouldApplyInitData()) return true;
     replaceArray(patients, result.data.patients);
     replaceArray(visits, result.data.visits);
-    replaceArray(visitImages, result.data.visitImages);
+    replaceArray(visitImages, dedupeVisitImages(result.data.visitImages));
     replaceArray(inbodyRecords, result.data.inbodyRecords);
     recalcTodayStats();
     offlineMode = false;
@@ -1270,20 +1294,10 @@ async function doInit(): Promise<void> {
     recalcTodayStats();
     offlineMode = false;
     allowCacheWrite = true;
-    saveDataCache();
 
-    // 사진·인바디는 화면을 막지 않고 백그라운드 로드
-    void loadSecondaryFromSupabase(12000, 2).then((secondary) => {
-      if (!secondary) {
-        applySecondaryOrCache(null);
-        saveDataCache();
-        return;
-      }
-      if (!shouldApplyInitData()) return;
-      replaceArray(visitImages, secondary.visitImages);
-      replaceArray(inbodyRecords, secondary.inbodyRecords);
-      saveDataCache();
-    });
+    const secondary = await loadSecondaryFromSupabase(12000, 2);
+    applySecondaryOrCache(secondary);
+    saveDataCache();
     return;
   }
 

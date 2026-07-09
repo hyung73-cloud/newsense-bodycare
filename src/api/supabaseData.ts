@@ -1,4 +1,5 @@
 import { supabase, STORAGE_BUCKET, isSupabaseEnabled, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
+import { resolveDisplayUrl, isPersistableMediaUrl, pickBestImage, isSampleOrBlobUrl } from '../lib/mediaUrl';
 import type { InbodyRecord, Patient, Visit, VisitImage } from '../types';
 
 /* ──────────────────────────────────────────────
@@ -71,11 +72,28 @@ function storagePublicUrl(path: string): string {
   return `${supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
 }
 
-function resolveImageUrl(url: string | null | undefined, storagePath: string | null | undefined): string {
-  const raw = url ?? '';
-  if (raw && !raw.startsWith('blob:')) return raw;
-  if (storagePath && supabaseUrl) return storagePublicUrl(storagePath);
-  return raw;
+function rowToImage(r: VisitImageRow): VisitImage | null {
+  const url = resolveDisplayUrl(r.url, r.storage_path, supabaseUrl) ?? '';
+  if (!url) return null;
+  return {
+    id: r.id,
+    visitId: r.visit_id,
+    type: r.type as VisitImage['type'],
+    url,
+    weightKg: num(r.weight_kg),
+    waistCm: num(r.waist_cm),
+  };
+}
+
+export function dedupeVisitImages(images: VisitImage[]): VisitImage[] {
+  const map = new Map<string, VisitImage>();
+  for (const img of images) {
+    if (!img.url) continue;
+    const key = `${img.visitId}:${img.type}`;
+    const prev = map.get(key);
+    map.set(key, prev ? pickBestImage(prev, img) : img);
+  }
+  return Array.from(map.values());
 }
 
 function rowToPatient(r: PatientRow): Patient {
@@ -152,22 +170,11 @@ function visitToRow(v: Visit): VisitRow {
   };
 }
 
-function rowToImage(r: VisitImageRow): VisitImage {
-  return {
-    id: r.id,
-    visitId: r.visit_id,
-    type: r.type as VisitImage['type'],
-    url: resolveImageUrl(r.url, r.storage_path),
-    weightKg: num(r.weight_kg),
-    waistCm: num(r.waist_cm),
-  };
-}
-
 function imageToRow(img: VisitImage, storagePath?: string): VisitImageRow {
-  if (img.url.startsWith('blob:') && !storagePath) {
+  if (isSampleOrBlobUrl(img.url) && !storagePath) {
     throw new Error('임시 사진은 서버에 저장할 수 없습니다. 업로드를 다시 시도해주세요.');
   }
-  const url = img.url.startsWith('blob:')
+  const url = isSampleOrBlobUrl(img.url)
     ? storagePath
       ? storagePublicUrl(storagePath)
       : null
@@ -183,7 +190,9 @@ function imageToRow(img: VisitImage, storagePath?: string): VisitImageRow {
   };
 }
 
-function rowToInbody(r: InbodyRow): InbodyRecord {
+function rowToInbody(r: InbodyRow): InbodyRecord | null {
+  const sheetImageUrl = resolveDisplayUrl(r.sheet_image_url, r.sheet_storage_path ?? null, supabaseUrl) ?? '';
+  if (!sheetImageUrl) return null;
   return {
     visitId: r.visit_id,
     weightKg: num(r.weight_kg),
@@ -193,15 +202,15 @@ function rowToInbody(r: InbodyRow): InbodyRecord {
     bmrKcal: num(r.bmr_kcal),
     abdominalFatRatio: num(r.abdominal_fat_ratio),
     smi: num(r.smi),
-    sheetImageUrl: resolveImageUrl(r.sheet_image_url, r.sheet_storage_path ?? null),
+    sheetImageUrl,
   };
 }
 
 function inbodyToRow(rec: InbodyRecord, storagePath?: string) {
-  if (rec.sheetImageUrl.startsWith('blob:') && !storagePath) {
+  if (isSampleOrBlobUrl(rec.sheetImageUrl) && !storagePath) {
     throw new Error('임시 인바디 이미지는 서버에 저장할 수 없습니다. 업로드를 다시 시도해주세요.');
   }
-  const sheetUrl = rec.sheetImageUrl.startsWith('blob:')
+  const sheetUrl = isSampleOrBlobUrl(rec.sheetImageUrl)
     ? storagePath
       ? storagePublicUrl(storagePath)
       : null
@@ -361,16 +370,22 @@ export async function loadCriticalFromSupabase(timeoutMs = 8000): Promise<
 
 /** 2단계: 사진·인바디 로드 (supabase-js 우선, REST 폴백, 재시도 포함). */
 async function loadSecondaryOnce(): Promise<SecondaryData> {
+  let visitImages: VisitImage[] = [];
+  let inbodyRecords: InbodyRecord[] = [];
+
   if (supabase) {
     const [imgRes, inbRes] = await Promise.all([
       supabase.from('visit_images').select('*'),
       supabase.from('inbody_records').select('*'),
     ]);
     if (!imgRes.error && !inbRes.error) {
-      return {
-        visitImages: (imgRes.data as VisitImageRow[]).map(rowToImage),
-        inbodyRecords: (inbRes.data as InbodyRow[]).map(rowToInbody),
-      };
+      visitImages = dedupeVisitImages(
+        (imgRes.data as VisitImageRow[]).map(rowToImage).filter((x): x is VisitImage => x !== null),
+      );
+      inbodyRecords = (inbRes.data as InbodyRow[])
+        .map(rowToInbody)
+        .filter((x): x is InbodyRecord => x !== null);
+      return { visitImages, inbodyRecords };
     }
     console.warn('[supabase] client 사진/인바디 로드 실패 → REST 재시도', imgRes.error, inbRes.error);
   }
@@ -379,10 +394,11 @@ async function loadSecondaryOnce(): Promise<SecondaryData> {
     restGet<VisitImageRow>('visit_images'),
     restGet<InbodyRow>('inbody_records'),
   ]);
-  return {
-    visitImages: iRows.map(rowToImage),
-    inbodyRecords: bRows.map(rowToInbody),
-  };
+  visitImages = dedupeVisitImages(
+    iRows.map(rowToImage).filter((x): x is VisitImage => x !== null),
+  );
+  inbodyRecords = bRows.map(rowToInbody).filter((x): x is InbodyRecord => x !== null);
+  return { visitImages, inbodyRecords };
 }
 
 export async function loadSecondaryFromSupabase(
@@ -439,9 +455,8 @@ export async function seedToSupabase(data: LoadedData): Promise<void> {
   try {
     await supabase.from('patients').upsert(data.patients.map(patientToRow));
     await supabase.from('visits').upsert(data.visits.map(visitToRow));
-    await supabase.from('visit_images').upsert(data.visitImages.map((i) => imageToRow(i)));
-    await supabase.from('inbody_records').upsert(data.inbodyRecords.map((r) => inbodyToRow(r)));
-    console.info('[supabase] 초기 샘플 데이터 시드 완료');
+    // 샘플 placeholder 사진·인바디는 DB에 넣지 않음 (실제 업로드만 저장)
+    console.info('[supabase] 초기 환자·방문 데이터 시드 완료');
   } catch (err) {
     console.error('[supabase] 시드 실패', err);
   }
@@ -469,6 +484,22 @@ export async function persistVisitImage(img: VisitImage, storagePath?: string): 
     .from('visit_images')
     .upsert(imageToRow(img, storagePath), { onConflict: 'id' });
   if (error) throw error;
+}
+
+/** 같은 방문·타입의 중복 행(placeholder 등) 제거. */
+export async function deleteOtherVisitImages(
+  visitId: string,
+  type: string,
+  keepId: string,
+): Promise<void> {
+  if (!isSupabaseEnabled || !supabase) return;
+  const { error } = await supabase
+    .from('visit_images')
+    .delete()
+    .eq('visit_id', visitId)
+    .eq('type', type)
+    .neq('id', keepId);
+  if (error) console.warn('[supabase] 중복 사진 행 삭제 실패', error.message);
 }
 
 export async function persistInbody(rec: InbodyRecord, storagePath?: string): Promise<void> {

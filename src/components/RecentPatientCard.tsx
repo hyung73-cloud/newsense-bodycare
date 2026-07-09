@@ -22,7 +22,11 @@ export default function RecentPatientCard({
     <div className="panel-card p-3.5 flex flex-col h-full border border-gray-100">
       <div className="flex gap-3 flex-1">
         <div className="w-16 h-[74px] rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 ring-1 ring-gray-200">
-          <img src={imageUrl} alt={patient.name} className="w-full h-full object-cover" />
+          {imageUrl ? (
+            <img src={imageUrl} alt={patient.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">No Image</div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-gray-900 truncate tracking-tight">
