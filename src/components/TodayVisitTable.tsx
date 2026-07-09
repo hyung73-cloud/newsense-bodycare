@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { Camera, FileText, CheckCircle, XCircle, ChevronRight } from 'lucide-react';
+import {
+  Camera,
+  FileText,
+  CheckCircle,
+  XCircle,
+  ChevronRight,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Patient, Visit, VisitStatus } from '../types';
 import { formatWon, getPackageDisplay } from '../lib/packageDisplay';
@@ -26,6 +32,54 @@ const filters: { key: FilterKey; label: string }[] = [
   { key: '진행중', label: '진행중' },
   { key: '미완료', label: '미완료' },
 ];
+
+const statusStyles: Record<VisitStatus, string> = {
+  완료: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  진행중: 'bg-blue-50 text-blue-700 border-blue-100',
+  미완료: 'bg-rose-50 text-rose-600 border-rose-100',
+};
+
+function StatusBadge({ status }: { status: VisitStatus }) {
+  const Icon = status === '완료' ? CheckCircle : status === '미완료' ? XCircle : null;
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${statusStyles[status]}`}
+    >
+      {Icon && <Icon className="w-3 h-3" />}
+      {status}
+    </span>
+  );
+}
+
+function PackageCell({
+  visit,
+  onOpen,
+}: {
+  visit: TodayVisitRow;
+  onOpen: () => void;
+}) {
+  const pkg = getPackageDisplay(visit);
+  if (!pkg) {
+    return <span className="text-gray-300 text-xs">-</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex items-center gap-1 w-full min-w-[8.5rem] rounded-lg px-1.5 py-1 hover:bg-primary/5 transition-colors text-left"
+      title="패키지권 전체 영수증 보기"
+    >
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-semibold text-primary truncate group-hover:underline">{pkg.title}</div>
+        {pkg.price > 0 && (
+          <div className="text-[10px] font-bold text-gray-900 tabular-nums">{formatWon(pkg.price)}</div>
+        )}
+      </div>
+      <ChevronRight className="w-3 h-3 text-gray-300 group-hover:text-primary shrink-0 transition-colors" />
+    </button>
+  );
+}
 
 export default function TodayVisitTable({ visits, className = '', onPackageUpdated }: TodayVisitTableProps) {
   const [expanded, setExpanded] = useState(false);
@@ -72,97 +126,76 @@ export default function TodayVisitTable({ visits, className = '', onPackageUpdat
       </div>
       <div className="flex-1 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="table-head">
-              <th className="table-head-cell text-left">순번</th>
-              <th className="table-head-cell text-left">방문일</th>
-              <th className="table-head-cell text-left">차트번호</th>
-              <th className="table-head-cell text-left">이름</th>
-              <th className="table-head-cell text-left">성별/나이</th>
-              <th className="table-head-cell text-right">체중</th>
-              <th className="table-head-cell text-right">허리</th>
-              <th className="table-head-cell text-center">사진</th>
-              <th className="table-head-cell text-center">인바디</th>
-              <th className="table-head-cell text-center">상태</th>
-              <th className="table-head-cell text-left min-w-[220px]">패키지</th>
+              <th className="table-head-cell text-center w-10">순번</th>
+              <th className="table-head-cell text-left w-[4.5rem]">차트</th>
+              <th className="table-head-cell text-left w-20">이름</th>
+              <th className="table-head-cell text-center w-16">성별/나이</th>
+              <th className="table-head-cell text-right w-12">체중</th>
+              <th className="table-head-cell text-right w-12">허리</th>
+              <th className="table-head-cell text-center w-10 px-1" title="사진">
+                사진
+              </th>
+              <th className="table-head-cell text-center w-10 px-1" title="인바디">
+                인바디
+              </th>
+              <th className="table-head-cell text-center w-[5.5rem] sticky right-[9.5rem] z-20 bg-gray-50 shadow-[-6px_0_10px_-8px_rgba(0,0,0,0.12)]">
+                상태
+              </th>
+              <th className="table-head-cell text-left w-[9.5rem] sticky right-0 z-20 bg-gray-50">
+                패키지
+              </th>
             </tr>
           </thead>
           <tbody>
             {visibleVisits.map((v, idx) => (
-              <tr key={v.id} className="table-body-row">
-                <td className="px-3 py-2.5 text-gray-600">{idx + 1}</td>
-                <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{v.date.replace(/-/g, '.')}</td>
-                <td className="px-3 py-2.5 text-gray-600">{v.patient.chartNo}</td>
-                <td className="px-3 py-2.5 font-medium text-gray-900">
+              <tr key={v.id} className="table-body-row group">
+                <td className="px-2 py-2.5 text-center text-gray-500 align-middle tabular-nums text-xs">
+                  {idx + 1}
+                </td>
+                <td className="px-2 py-2.5 text-gray-600 whitespace-nowrap align-middle tabular-nums text-xs">
+                  {v.patient.chartNo}
+                </td>
+                <td className="px-2 py-2.5 font-medium text-gray-900 align-middle whitespace-nowrap text-xs">
                   <Link to={`/patient/${v.patient.id}`} className="hover:text-primary hover:underline">
                     {v.patient.name}
                   </Link>
                 </td>
-                <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">
+                <td className="px-2 py-2.5 text-gray-600 whitespace-nowrap align-middle text-center text-xs">
                   {v.patient.sex}/{v.patient.ageAtToday}
                 </td>
-                <td className="px-3 py-2.5 text-right font-medium">{v.weightKg}</td>
-                <td className="px-3 py-2.5 text-right font-medium">{v.waistCm}</td>
-                <td className="px-3 py-2.5 text-center">
+                <td className="px-2 py-2.5 text-right font-medium align-middle tabular-nums text-xs">
+                  {v.weightKg}
+                </td>
+                <td className="px-2 py-2.5 text-right font-medium align-middle tabular-nums text-xs">
+                  {v.waistCm}
+                </td>
+                <td className="px-1 py-2.5 text-center align-middle">
                   {v.photoUploaded ? (
-                    <Camera className="w-3.5 h-3.5 text-green-500 inline" />
+                    <Camera className="w-3.5 h-3.5 text-emerald-500 inline" />
                   ) : (
-                    <XCircle className="w-3.5 h-3.5 text-red-400 inline" />
+                    <XCircle className="w-3.5 h-3.5 text-rose-400 inline" />
                   )}
                 </td>
-                <td className="px-3 py-2.5 text-center">
+                <td className="px-1 py-2.5 text-center align-middle">
                   {v.inbodyUploaded ? (
-                    <FileText className="w-3.5 h-3.5 text-green-500 inline" />
+                    <FileText className="w-3.5 h-3.5 text-emerald-500 inline" />
                   ) : (
-                    <XCircle className="w-3.5 h-3.5 text-red-400 inline" />
+                    <XCircle className="w-3.5 h-3.5 text-rose-400 inline" />
                   )}
                 </td>
-                <td className="px-3 py-2.5 text-center">
-                  {v.status === '완료' ? (
-                    <span className="inline-flex items-center gap-0.5 text-green-600 text-[11px] font-medium">
-                      <CheckCircle className="w-3 h-3" />
-                      완료
-                    </span>
-                  ) : v.status === '진행중' ? (
-                    <span className="text-blue-600 text-[11px] font-medium">진행중</span>
-                  ) : (
-                    <span className="inline-flex items-center gap-0.5 text-red-500 text-[11px] font-medium">
-                      <XCircle className="w-3 h-3" />
-                      미완료
-                    </span>
-                  )}
+                <td className="px-2 py-2.5 text-center align-middle sticky right-[9.5rem] z-10 bg-white group-hover:bg-gray-50/70 shadow-[-6px_0_10px_-8px_rgba(0,0,0,0.08)]">
+                  <StatusBadge status={v.status} />
                 </td>
-                <td className="px-3 py-2.5 align-top min-w-[220px] max-w-[320px]">
-                  {(() => {
-                    const pkg = getPackageDisplay(v);
-                    if (!pkg) return <span className="text-gray-300 text-xs">-</span>;
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => setReceiptVisit(v)}
-                        className="w-full text-left space-y-0.5 rounded-lg px-1.5 py-1 -mx-1.5 hover:bg-primary/5 transition-colors cursor-pointer group"
-                        title="패키지권 전체 영수증 보기"
-                      >
-                        <div className="text-[11px] font-semibold text-primary leading-snug group-hover:underline">
-                          {pkg.title}
-                        </div>
-                        {pkg.items && (
-                          <div className="text-[10px] text-gray-600 leading-relaxed break-words">
-                            {pkg.items}
-                          </div>
-                        )}
-                        {pkg.price > 0 && (
-                          <div className="text-[11px] font-bold text-gray-900">{formatWon(pkg.price)}</div>
-                        )}
-                      </button>
-                    );
-                  })()}
+                <td className="px-2 py-2.5 align-middle sticky right-0 z-10 bg-white group-hover:bg-gray-50/70">
+                  <PackageCell visit={v} onOpen={() => setReceiptVisit(v)} />
                 </td>
               </tr>
             ))}
             {visibleVisits.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-3 py-8 text-center text-xs text-gray-400">
+                <td colSpan={10} className="px-3 py-8 text-center text-xs text-gray-400">
                   해당 상태의 방문 기록이 없습니다.
                 </td>
               </tr>
