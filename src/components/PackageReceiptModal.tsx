@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Ticket, Printer, Pencil, Plus, Trash2, Save } from 'lucide-react';
 import type { PackageTicketLine, Patient, Visit } from '../types';
-import { formatWon, getPackageTickets, sumTicketPrices } from '../lib/packageDisplay';
+import { formatWon, getPackageDisplay, getPackageTickets, sumTicketPrices } from '../lib/packageDisplay';
 import { updateVisitPackage } from '../api/mock';
 
 interface PackageReceiptModalProps {
@@ -32,9 +32,13 @@ export default function PackageReceiptModal({
     setTickets(getPackageTickets(visit));
   }, [open, visit]);
 
+  const packageDisplay = useMemo(() => getPackageDisplay(visit), [visit]);
   const total = useMemo(() => sumTicketPrices(tickets), [tickets]);
-  const storedTotal = visit.packagePrice ?? total;
-  const displayTotal = editing ? total : storedTotal > 0 ? storedTotal : total;
+  const displayTotal = editing
+    ? total
+    : total > 0
+      ? total
+      : (packageDisplay?.price ?? visit.packagePrice ?? 0);
 
   if (!open) return null;
 
@@ -214,7 +218,7 @@ export default function PackageReceiptModal({
                     </div>
                   </div>
                   <span className="text-sm font-bold text-gray-800 flex-shrink-0">
-                    {t.price > 0 ? formatWon(t.price) : '-'}
+                    {t.price > 0 ? formatWon(t.price) : t.sub === '포함 항목' ? '포함' : '-'}
                   </span>
                 </li>
               ))}

@@ -24,20 +24,16 @@ export function getPackageDisplay(visit: Pick<Visit, 'packageName' | 'packageDet
   const title = visit.packageName?.trim() ?? '';
   if (!title) return null;
 
-  if (visit.packageDetail || visit.packagePrice != null) {
-    return {
-      title,
-      items: visit.packageDetail?.trim() ?? '',
-      price: visit.packagePrice ?? 0,
-    };
-  }
-
   const legacy = LEGACY_PACKAGES[title];
-  if (legacy) {
-    return { title, items: legacy.items, price: legacy.price };
-  }
+  const items = visit.packageDetail?.trim() || legacy?.items || '';
+  const storedPrice = visit.packagePrice;
 
-  return { title, items: '', price: 0 };
+  const price =
+    storedPrice != null && storedPrice > 0
+      ? storedPrice
+      : legacy?.price ?? (storedPrice ?? 0);
+
+  return { title, items, price };
 }
 
 /** 영수증 모달용 티켓 목록 (저장된 JSON 우선, 없으면 기존 필드로 복원) */
@@ -57,7 +53,7 @@ export function getPackageTickets(
     .filter(Boolean);
 
   if (parts.length > 1) {
-    return parts.map((label) => ({ label, price: 0 }));
+    return parts.map((label) => ({ label, sub: '포함 항목', price: 0 }));
   }
 
   return [
