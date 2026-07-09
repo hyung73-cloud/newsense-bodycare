@@ -35,8 +35,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const savedStaff = localStorage.getItem(STAFF_KEY);
     if (savedStaff) setStaffName(savedStaff);
     if (savedAuth && isClinicAuthEnabled()) {
-      void restoreClinicSession().finally(() => {
-        setAuthenticated(savedAuth);
+      void restoreClinicSession().then((hasSession) => {
+        if (!hasSession) {
+          localStorage.removeItem(AUTH_KEY);
+          setAuthenticated(false);
+        } else {
+          setAuthenticated(true);
+        }
         setBooting(false);
       });
       return;

@@ -1098,13 +1098,17 @@ let dataLoadFailed = false;
 let offlineMode = false;
 let allowCacheWrite = false;
 
+function isPersistableUrl(url: string | undefined): boolean {
+  return Boolean(url && !url.startsWith('blob:'));
+}
+
 function saveDataCache(): void {
   try {
     const payload: DataCachePayload = {
       patients: [...patients],
       visits: [...visits],
-      visitImages: [...visitImages],
-      inbodyRecords: [...inbodyRecords],
+      visitImages: visitImages.filter((img) => isPersistableUrl(img.url)),
+      inbodyRecords: inbodyRecords.filter((r) => isPersistableUrl(r.sheetImageUrl)),
       savedAt: new Date().toISOString(),
     };
     localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(payload));
@@ -1213,17 +1217,32 @@ async function doInit(): Promise<void> {
   if (result.status === 'loaded') {
     replaceArray(patients, result.data.patients);
     replaceArray(visits, result.data.visits);
-    // 서버 데이터 로드 시 샘플 사진/인바디 제거 (잘못된 표시 방지)
-    replaceArray(visitImages, []);
-    replaceArray(inbodyRecords, []);
-    recalcTodayStats();
 
-    const secondary = await loadSecondaryFromSupabase(8000);
+    const secondary = await loadSecondaryFromSupabase(12000, 2);
     if (secondary) {
       replaceArray(visitImages, secondary.visitImages);
       replaceArray(inbodyRecords, secondary.inbodyRecords);
+    } else {
+      const cache = loadDataCache();
+      const visitIds = new Set(visits.map((v) => v.id));
+      const cachedImages =
+        cache?.visitImages?.filter(
+          (img) => visitIds.has(img.visitId) && isPersistableUrl(img.url),
+        ) ?? [];
+      const cachedInbody =
+        cache?.inbodyRecords?.filter(
+          (r) => visitIds.has(r.visitId) && isPersistableUrl(r.sheetImageUrl),
+        ) ?? [];
+      replaceArray(visitImages, cachedImages);
+      replaceArray(inbodyRecords, cachedInbody);
+      if (cachedImages.length === 0 && cachedInbody.length === 0) {
+        console.warn('[init] 사진/인바디 서버 로드 실패 — 캐시에도 유효한 이미지 없음');
+      } else {
+        console.warn('[init] 사진/인바디 서버 로드 실패 → 로컬 캐시 이미지 사용');
+      }
     }
 
+    recalcTodayStats();
     offlineMode = false;
     allowCacheWrite = true;
     saveDataCache();

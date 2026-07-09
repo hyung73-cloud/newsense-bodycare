@@ -1,10 +1,14 @@
 import { supabase, isSupabaseEnabled } from '../lib/supabase';
 
-const AUTH_EMAIL = (import.meta.env.VITE_CLINIC_AUTH_EMAIL as string | undefined)?.trim();
+/** Supabase에 등록한 클리닉 공용 계정 (환경변수로 덮어쓸 수 있음). */
+const DEFAULT_CLINIC_EMAIL = 'clinic@newsense.bodycare';
 
-/** Supabase Auth 로그인이 설정되어 있는지 (이메일 환경변수 필요). */
+const AUTH_EMAIL =
+  (import.meta.env.VITE_CLINIC_AUTH_EMAIL as string | undefined)?.trim() || DEFAULT_CLINIC_EMAIL;
+
+/** Supabase Auth 로그인 사용 (Supabase 연결 시 항상 시도). */
 export function isClinicAuthEnabled(): boolean {
-  return isSupabaseEnabled && Boolean(AUTH_EMAIL) && Boolean(supabase);
+  return isSupabaseEnabled && Boolean(supabase);
 }
 
 /**
@@ -12,7 +16,7 @@ export function isClinicAuthEnabled(): boolean {
  * PIN 검증은 기존 adminAuth에서 수행한 뒤 호출한다.
  */
 export async function signInClinic(pin: string): Promise<void> {
-  if (!isClinicAuthEnabled() || !supabase || !AUTH_EMAIL) return;
+  if (!isClinicAuthEnabled() || !supabase) return;
 
   const password =
     (import.meta.env.VITE_CLINIC_AUTH_PASSWORD as string | undefined)?.trim() || pin;
@@ -21,7 +25,12 @@ export async function signInClinic(pin: string): Promise<void> {
     email: AUTH_EMAIL,
     password,
   });
-  if (error) throw new Error('서버 인증에 실패했습니다. 관리자에게 문의하세요.');
+  if (error) {
+    console.error('[auth] Supabase 로그인 실패', error.message);
+    throw new Error(
+      '서버 인증에 실패했습니다. Supabase 사용자 비밀번호가 PIN과 같은지 확인해주세요.',
+    );
+  }
 }
 
 export async function signOutClinic(): Promise<void> {

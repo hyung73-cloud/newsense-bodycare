@@ -58,12 +58,25 @@ interface InbodyRow {
   abdominal_fat_ratio: number;
   smi: number;
   sheet_image_url: string | null;
+  sheet_storage_path?: string | null;
 }
 
 const num = (v: unknown, fallback = 0): number => {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 };
+
+/** Storage 경로 → 공개 URL */
+function storagePublicUrl(path: string): string {
+  return `${supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
+}
+
+function resolveImageUrl(url: string | null | undefined, storagePath: string | null | undefined): string {
+  const raw = url ?? '';
+  if (raw && !raw.startsWith('blob:')) return raw;
+  if (storagePath && supabaseUrl) return storagePublicUrl(storagePath);
+  return raw;
+}
 
 function rowToPatient(r: PatientRow): Patient {
   return {
@@ -144,18 +157,26 @@ function rowToImage(r: VisitImageRow): VisitImage {
     id: r.id,
     visitId: r.visit_id,
     type: r.type as VisitImage['type'],
-    url: r.url ?? '',
+    url: resolveImageUrl(r.url, r.storage_path),
     weightKg: num(r.weight_kg),
     waistCm: num(r.waist_cm),
   };
 }
 
 function imageToRow(img: VisitImage, storagePath?: string): VisitImageRow {
+  if (img.url.startsWith('blob:') && !storagePath) {
+    throw new Error('임시 사진은 서버에 저장할 수 없습니다. 업로드를 다시 시도해주세요.');
+  }
+  const url = img.url.startsWith('blob:')
+    ? storagePath
+      ? storagePublicUrl(storagePath)
+      : null
+    : img.url;
   return {
     id: img.id,
     visit_id: img.visitId,
     type: img.type,
-    url: img.url,
+    url,
     storage_path: storagePath ?? null,
     weight_kg: img.weightKg,
     waist_cm: img.waistCm,
@@ -172,11 +193,19 @@ function rowToInbody(r: InbodyRow): InbodyRecord {
     bmrKcal: num(r.bmr_kcal),
     abdominalFatRatio: num(r.abdominal_fat_ratio),
     smi: num(r.smi),
-    sheetImageUrl: r.sheet_image_url ?? '',
+    sheetImageUrl: resolveImageUrl(r.sheet_image_url, r.sheet_storage_path ?? null),
   };
 }
 
 function inbodyToRow(rec: InbodyRecord, storagePath?: string) {
+  if (rec.sheetImageUrl.startsWith('blob:') && !storagePath) {
+    throw new Error('임시 인바디 이미지는 서버에 저장할 수 없습니다. 업로드를 다시 시도해주세요.');
+  }
+  const sheetUrl = rec.sheetImageUrl.startsWith('blob:')
+    ? storagePath
+      ? storagePublicUrl(storagePath)
+      : null
+    : rec.sheetImageUrl;
   return {
     visit_id: rec.visitId,
     weight_kg: rec.weightKg,
@@ -186,7 +215,7 @@ function inbodyToRow(rec: InbodyRecord, storagePath?: string) {
     bmr_kcal: rec.bmrKcal,
     abdominal_fat_ratio: rec.abdominalFatRatio,
     smi: rec.smi,
-    sheet_image_url: rec.sheetImageUrl,
+    sheet_image_url: sheetUrl,
     ...(storagePath ? { sheet_storage_path: storagePath } : {}),
   };
 }
@@ -324,28 +353,38 @@ export async function loadCriticalFromSupabase(timeoutMs = 8000): Promise<
   }
 }
 
-/** 2단계: 사진·인바디는 백그라운드 로드 (실패해도 앱은 계속 사용). */
-export async function loadSecondaryFromSupabase(timeoutMs = 8000): Promise<SecondaryData | null> {
+/** 2단계: 사진·인바디 로드 (재시도 포함). */
+export async function loadSecondaryFromSupabase(
+  timeoutMs = 12000,
+  maxRetries = 2,
+): Promise<SecondaryData | null> {
   if (!isSupabaseEnabled || !supabaseUrl || !supabaseAnonKey) return null;
-  try {
-    return await withTimeout(
-      (async () => {
-        const [iRows, bRows] = await Promise.all([
-          restGet<VisitImageRow>('visit_images'),
-          restGet<InbodyRow>('inbody_records'),
-        ]);
-        return {
-          visitImages: iRows.map(rowToImage),
-          inbodyRecords: bRows.map(rowToInbody),
-        };
-      })(),
-      timeoutMs,
-      '사진/인바디 로드',
-    );
-  } catch (err) {
-    console.error('[supabase] 사진/인바디 로드 실패 (앱은 계속 사용 가능)', err);
-    return null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await withTimeout(
+        (async () => {
+          const [iRows, bRows] = await Promise.all([
+            restGet<VisitImageRow>('visit_images'),
+            restGet<InbodyRow>('inbody_records'),
+          ]);
+          return {
+            visitImages: iRows.map(rowToImage),
+            inbodyRecords: bRows.map(rowToInbody),
+          };
+        })(),
+        timeoutMs,
+        '사진/인바디 로드',
+      );
+    } catch (err) {
+      console.error(
+        `[supabase] 사진/인바디 로드 실패 (${attempt + 1}/${maxRetries + 1})`,
+        err,
+      );
+      if (attempt < maxRetries) await sleep(800 * (attempt + 1));
+    }
   }
+  return null;
 }
 
 /** 수동 재시도용: 핵심 + 부가 데이터 전체 로드 (최대 1회 재시도, 4초 타임아웃). */
