@@ -204,7 +204,7 @@ export default function PackageSelectPage() {
   // 발급될 티켓(시술권) 목록 구성
   const tickets = useMemo(() => {
     const list: { label: string; sub?: string; price: number; kind: 'level' | 'proc' | 'focused' | 'plus' }[] = [];
-    if (level) list.push({ label: `${level.name} · ${level.subtitle}`, sub: '월 구독', price: level.price, kind: 'level' });
+    if (level) list.push({ label: `${level.name} · ${level.subtitle}`, sub: '패키지', price: level.price, kind: 'level' });
     procSelections.forEach((p) => {
       const areaText = p.areas && p.areas.length > 0 ? ` · ${p.areas.join(', ')}` : '';
       list.push({ label: `${p.name} ${p.freq}회권${areaText}`, sub: '시술권', price: p.price, kind: 'proc' });
@@ -437,7 +437,7 @@ export default function PackageSelectPage() {
             </section>
 
             <h2 className="text-lg font-bold text-gray-900">관리 레벨을 선택하세요</h2>
-            <p className="text-xs text-gray-500 mt-1 mb-4">월 관리비에 포함되는 항목을 확인하고 선택해주세요.</p>
+            <p className="text-xs text-gray-500 mt-1 mb-4">패키지에 포함되는 항목을 확인하고 선택해주세요.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {LEVELS.map((lv) => {
@@ -469,7 +469,7 @@ export default function PackageSelectPage() {
                     </ul>
                     <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
                       <div>
-                        <div className="text-[11px] text-gray-400">월 관리비</div>
+                        <div className="text-[11px] text-gray-400">패키지 가격</div>
                         <span className={`text-lg font-extrabold ${lv.color}`}>{won(lv.price)}</span>
                       </div>
                       <span className={`w-7 h-7 rounded-full flex items-center justify-center border-2 ${active ? 'border-primary bg-primary' : 'border-gray-300'}`}>
@@ -635,7 +635,7 @@ export default function PackageSelectPage() {
             ) : (
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <p className="text-sm text-gray-500">
-                  Plus 프로그램은 <strong className="text-purple-600">Premium 체형관리</strong> 구독 시 이용 가능합니다.
+                  Plus 프로그램은 <strong className="text-purple-600">Premium 체형관리</strong> 선택 시 이용 가능합니다.
                 </p>
               </div>
             )}
@@ -698,7 +698,7 @@ export default function PackageSelectPage() {
 
                 <div className="p-4 bg-primary/5">
                   <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-gray-500">월 관리비</span>
+                    <span className="text-gray-500">패키지 가격</span>
                     <span>{won(level?.price ?? 0)}</span>
                   </div>
                   {procedureTotal > 0 && (
@@ -752,7 +752,7 @@ export default function PackageSelectPage() {
       {!issued && (
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-500">{step === 1 ? '월 관리비' : '예상 합계'}</span>
+          <span className="text-xs text-gray-500">{step === 1 ? '패키지 가격' : '예상 합계'}</span>
           <span className="text-lg font-extrabold text-primary">{won(total)}</span>
         </div>
         <div className="flex items-center gap-2">
