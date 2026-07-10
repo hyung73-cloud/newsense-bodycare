@@ -38,12 +38,7 @@ export default function VisitListDrawer({ open, title, visits, onClose }: VisitL
               className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
             >
               <div>
-                <div className="text-sm font-medium text-gray-900">
-                  {v.patient.name}
-                  <span className="text-xs text-gray-400 ml-2">
-                    {v.patient.sex}/{v.patient.ageAtToday}
-                  </span>
-                </div>
+                <div className="text-sm font-medium text-gray-900">{v.patient.name}</div>
                 <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
                   <span>{v.patient.chartNo}</span>
                   <span className="inline-flex items-center gap-0.5">

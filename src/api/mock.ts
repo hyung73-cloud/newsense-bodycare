@@ -27,6 +27,8 @@ import {
   uploadFile,
   dedupeVisitImages,
   deleteOtherVisitImages,
+  purgePatientsWithChartNos,
+  purgePatientsExceptChartNos,
 } from './supabaseData';
 import { isPersistableMediaUrl, isSampleOrBlobUrl, pickBestImage } from '../lib/mediaUrl';
 
@@ -58,6 +60,9 @@ const PLACEHOLDER_SIDE =
 const INBODY_SHEET =
   'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=300&h=400&fit=crop';
 
+void PLACEHOLDER_FRONT;
+void PLACEHOLDER_SIDE;
+
 const _now = new Date();
 const _pad = (n: number) => String(n).padStart(2, '0');
 const _dow = ['일', '월', '화', '수', '목', '금', '토'][_now.getDay()];
@@ -69,341 +74,47 @@ export const TODAY_DISPLAY = `${_now.getFullYear()}.${_pad(_now.getMonth() + 1)}
 
 export const staff: StaffInfo = { name: '김민수' };
 
-export const patients: Patient[] = [
-  {
-    id: 'p1',
-    chartNo: '000125',
-    name: '김뉴센',
-    sex: '여',
-    birth: '1999.11.25',
-    ageAtToday: 26,
-    heightCm: 162,
-    startDate: '2025.11.25',
-    totalVisits: 3,
-    lastVisitDate: '2025.12.16',
-    phone: '010-1234-5678',
-  },
-  {
-    id: 'p2',
-    chartNo: '000118',
-    name: '이건강',
-    sex: '남',
-    birth: '1988.03.14',
-    ageAtToday: 37,
-    heightCm: 175,
-    startDate: '2025.12.10',
-    totalVisits: 2,
-    lastVisitDate: '2025.12.16',
-    phone: '010-2222-3456',
-  },
-  {
-    id: 'p3',
-    chartNo: '000132',
-    name: '박다이어트',
-    sex: '여',
-    birth: '1992.07.08',
-    ageAtToday: 33,
-    heightCm: 158,
-    startDate: '2025.12.14',
-    totalVisits: 1,
-    lastVisitDate: '2025.12.16',
-    phone: '010-3333-7890',
-  },
-  {
-    id: 'p4',
-    chartNo: '000109',
-    name: '최슬림',
-    sex: '여',
-    birth: '1985.01.20',
-    ageAtToday: 40,
-    heightCm: 165,
-    startDate: '2025.10.05',
-    totalVisits: 8,
-    lastVisitDate: '2025.12.16',
-    phone: '010-4444-1234',
-  },
-  {
-    id: 'p5',
-    chartNo: '000141',
-    name: '정바디',
-    sex: '남',
-    birth: '1995.09.30',
-    ageAtToday: 30,
-    heightCm: 178,
-    startDate: '2025.12.16',
-    totalVisits: 1,
-    lastVisitDate: '2025.12.16',
-    phone: '010-5555-9876',
-  },
-  {
-    id: 'p6',
-    chartNo: '000098',
-    name: '한웰니스',
-    sex: '여',
-    birth: '1978.12.02',
-    ageAtToday: 47,
-    heightCm: 160,
-    startDate: '2025.09.01',
-    totalVisits: 12,
-    lastVisitDate: '2025.12.16',
-    phone: '010-6666-4321',
-  },
-];
+/** 운영 DB에서 삭제할 시드(테스트) 차트번호 */
+export const TEST_SEED_CHART_NOS = ['000125', '000118', '000132', '000109', '000141', '000098'];
 
-export const visits: Visit[] = [
-  // 김뉴센 - 3 visits
-  {
-    id: 'v1',
-    patientId: 'p1',
-    date: '2025.11.25',
-    weightKg: 72.5,
-    waistCm: 88,
-    bodyFatPct: 43.2,
-    skeletalMuscleKg: 19.6,
-    visceralLevel: 13,
-    doctorNote: '초진. 체중관리 프로그램 시작. 식이조절 및 유산소 운동 권고.',
-    photoUploaded: true,
-    inbodyUploaded: true,
-    status: '완료',
-    enteredBy: '김실장',
-    enteredAt: '2025.11.25 10:30',
-    hidden: false,
-  },
-  {
-    id: 'v2',
-    patientId: 'p1',
-    date: '2025.12.02',
-    weightKg: 71.2,
-    waistCm: 86,
-    bodyFatPct: 41.5,
-    skeletalMuscleKg: 19.8,
-    visceralLevel: 12,
-    doctorNote: '1주차 재진. 체중 1.3kg 감소. 식단 준수 양호.',
-    photoUploaded: true,
-    inbodyUploaded: true,
-    status: '완료',
-    enteredBy: '김실장',
-    enteredAt: '2025.12.02 11:00',
-    hidden: false,
-  },
-  {
-    id: 'v3',
-    patientId: 'p1',
-    date: '2025.12.16',
-    weightKg: 70.0,
-    waistCm: 84,
-    bodyFatPct: 40.0,
-    skeletalMuscleKg: 20.0,
-    visceralLevel: 12,
-    doctorNote: '3주차 재진. 체지방률 3.2%p 감소. 골격근량 유지 양호. 다음 방문 2주 후.',
-    photoUploaded: true,
-    inbodyUploaded: true,
-    status: '완료',
-    enteredBy: '김실장',
-    enteredAt: '2025.12.16 10:40',
-    hidden: false,
-  },
-  // 이건강
-  {
-    id: 'v4',
-    patientId: 'p2',
-    date: '2025.12.10',
-    weightKg: 85.0,
-    waistCm: 92,
-    bodyFatPct: 28.5,
-    skeletalMuscleKg: 32.0,
-    visceralLevel: 10,
-    doctorNote: '초진. 복부비만 위주. 근력운동 병행 권고.',
-    photoUploaded: true,
-    inbodyUploaded: true,
-    status: '완료',
-    enteredBy: '김실장',
-    enteredAt: '2025.12.10 14:20',
-    hidden: false,
-  },
-  {
-    id: 'v5',
-    patientId: 'p2',
-    date: '2025.12.16',
-    weightKg: 83.5,
-    waistCm: 90,
-    bodyFatPct: 27.8,
-    skeletalMuscleKg: 32.2,
-    visceralLevel: 9,
-    doctorNote: '재진. 체중 감소 추세 양호.',
-    photoUploaded: true,
-    inbodyUploaded: true,
-    status: '완료',
-    enteredBy: '김실장',
-    enteredAt: '2025.12.16 09:15',
-    hidden: false,
-  },
-  // 박다이어트 - 신규
-  {
-    id: 'v6',
-    patientId: 'p3',
-    date: '2025.12.16',
-    weightKg: 68.0,
-    waistCm: 82,
-    bodyFatPct: 35.0,
-    skeletalMuscleKg: 22.0,
-    visceralLevel: 8,
-    doctorNote: '신규 등록. 목표 체중 60kg.',
-    photoUploaded: true,
-    inbodyUploaded: false,
-    status: '미완료',
-    enteredBy: '김실장',
-    enteredAt: '2025.12.16 11:30',
-    hidden: false,
-  },
-  // 최슬림
-  {
-    id: 'v7',
-    patientId: 'p4',
-    date: '2025.12.16',
-    weightKg: 62.0,
-    waistCm: 74,
-    bodyFatPct: 30.5,
-    skeletalMuscleKg: 24.5,
-    visceralLevel: 6,
-    doctorNote: '정기 재진. 유지기 관리 중.',
-    photoUploaded: true,
-    inbodyUploaded: true,
-    status: '완료',
-    enteredBy: '김실장',
-    enteredAt: '2025.12.16 10:00',
-    hidden: false,
-  },
-  // 정바디 - 신규, 진행중
-  {
-    id: 'v8',
-    patientId: 'p5',
-    date: '2025.12.16',
-    weightKg: 92.0,
-    waistCm: 98,
-    bodyFatPct: 32.0,
-    skeletalMuscleKg: 35.0,
-    visceralLevel: 14,
-    doctorNote: '신규 등록. 인바디 대기 중.',
-    photoUploaded: true,
-    inbodyUploaded: false,
-    status: '진행중',
-    enteredBy: '김실장',
-    enteredAt: '2025.12.16 11:45',
-    hidden: false,
-  },
-  // 한웰니스
-  {
-    id: 'v9',
-    patientId: 'p6',
-    date: '2025.12.16',
-    weightKg: 58.5,
-    waistCm: 72,
-    bodyFatPct: 28.0,
-    skeletalMuscleKg: 23.0,
-    visceralLevel: 5,
-    doctorNote: '장기 관리 환자. 현재 상태 양호.',
-    photoUploaded: true,
-    inbodyUploaded: true,
-    status: '완료',
-    enteredBy: '김실장',
-    enteredAt: '2025.12.16 08:50',
-    hidden: false,
-  },
-];
+/** 실제 등록 환자 — 일회성 전체 정리 시 보존 */
+export const PRODUCTION_CHART_NOS = ['8853'];
 
-export const visitImages: VisitImage[] = [
-  { id: 'img1', visitId: 'v1', type: 'front', url: PLACEHOLDER_FRONT, weightKg: 72.5, waistCm: 88 },
-  { id: 'img2', visitId: 'v1', type: 'side', url: PLACEHOLDER_SIDE, weightKg: 72.5, waistCm: 88 },
-  { id: 'img3', visitId: 'v2', type: 'front', url: PLACEHOLDER_FRONT, weightKg: 71.2, waistCm: 86 },
-  { id: 'img4', visitId: 'v2', type: 'side', url: PLACEHOLDER_SIDE, weightKg: 71.2, waistCm: 86 },
-  { id: 'img5', visitId: 'v3', type: 'front', url: PLACEHOLDER_FRONT, weightKg: 70.0, waistCm: 84 },
-  { id: 'img6', visitId: 'v3', type: 'side', url: PLACEHOLDER_SIDE, weightKg: 70.0, waistCm: 84 },
-];
+const ONE_TIME_PRODUCTION_PURGE_KEY = 'bodycare-production-purge-8853-v1';
 
-export const inbodyRecords: InbodyRecord[] = [
-  {
-    visitId: 'v1',
-    weightKg: 72.5,
-    skeletalMuscleKg: 19.6,
-    bodyFatPct: 43.2,
-    visceralLevel: 13,
-    bmrKcal: 1205,
-    abdominalFatRatio: 0.92,
-    smi: 5.8,
-    sheetImageUrl: INBODY_SHEET,
-  },
-  {
-    visitId: 'v2',
-    weightKg: 71.2,
-    skeletalMuscleKg: 19.8,
-    bodyFatPct: 41.5,
-    visceralLevel: 12,
-    bmrKcal: 1190,
-    abdominalFatRatio: 0.88,
-    smi: 5.9,
-    sheetImageUrl: INBODY_SHEET,
-  },
-  {
-    visitId: 'v3',
-    weightKg: 70.0,
-    skeletalMuscleKg: 20.0,
-    bodyFatPct: 40.0,
-    visceralLevel: 12,
-    bmrKcal: 1178,
-    abdominalFatRatio: 0.85,
-    smi: 6.1,
-    sheetImageUrl: INBODY_SHEET,
-  },
-];
+export const patients: Patient[] = [];
+
+export const visits: Visit[] = [];
+
+export const visitImages: VisitImage[] = [];
+
+export const inbodyRecords: InbodyRecord[] = [];
 
 export const procedureTags: ProcedureTag[] = [
-  { key: 'arginine', label: '아르기닌 수액요법', count: 5, patientIds: ['p1', 'p2', 'p4', 'p5', 'p6'] },
-  { key: 'carboxy', label: '카복시테라피', count: 3, patientIds: ['p1', 'p3', 'p4'] },
-  { key: 'liposuction', label: '부분 피하지방 시술', count: 4, patientIds: ['p2', 'p4', 'p5', 'p6'] },
-  { key: 'cnu', label: '씨앤유 처방', count: 7, patientIds: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p2'] },
-  { key: 'hba1c', label: '당화혈색소 검사', count: 2, patientIds: ['p4', 'p6'] },
+  { key: 'arginine', label: '아르기닌 수액요법', count: 0, patientIds: [] },
+  { key: 'carboxy', label: '카복시테라피', count: 0, patientIds: [] },
+  { key: 'liposuction', label: '부분 피하지방 시술', count: 0, patientIds: [] },
+  { key: 'cnu', label: '씨앤유 처방', count: 0, patientIds: [] },
+  { key: 'hba1c', label: '당화혈색소 검사', count: 0, patientIds: [] },
 ];
 
 export const todayStats: TodayStats = {
   date: TODAY_DISPLAY,
-  totalVisits: 18,
-  newPatients: 3,
-  photoUploaded: 17,
-  inbodyUploaded: 16,
-  incomplete: 2,
+  totalVisits: 0,
+  newPatients: 0,
+  photoUploaded: 0,
+  inbodyUploaded: 0,
+  incomplete: 0,
 };
 
 export const progressStats: ProgressStats = {
-  total: 18,
-  completed: 16,
-  inProgress: 1,
-  incomplete: 1,
+  total: 0,
+  completed: 0,
+  inProgress: 0,
+  incomplete: 0,
 };
 
-export const recentMemos: RecentMemo[] = [
-  {
-    id: 'm1',
-    date: '2025.12.16',
-    patientName: '김뉴센',
-    patientId: 'p1',
-    summary: '체지방률 3.2%p 감소. 골격근량 유지 양호.',
-  },
-  {
-    id: 'm2',
-    date: '2025.12.16',
-    patientName: '이건강',
-    patientId: 'p2',
-    summary: '체중 1.5kg 감소. 식단 준수 양호.',
-  },
-  {
-    id: 'm3',
-    date: '2025.12.15',
-    patientName: '최슬림',
-    patientId: 'p4',
-    summary: '유지기 관리. 다음 방문 4주 후 예정.',
-  },
-];
+export const recentMemos: RecentMemo[] = [];
 
 function generateCalendarDays(year: number, month: number): CalendarDay[] {
   const days: CalendarDay[] = [];
@@ -1228,18 +939,50 @@ function loadDataCache(): DataCachePayload | null {
   }
 }
 
+function filterCacheToPreserved(payload: DataCachePayload): DataCachePayload {
+  const keptPatients = payload.patients.filter((p) => !TEST_SEED_CHART_NOS.includes(p.chartNo));
+  const keptPatientIds = new Set(keptPatients.map((p) => p.id));
+  const keptVisits = payload.visits.filter((v) => keptPatientIds.has(v.patientId));
+  const keptVisitIds = new Set(keptVisits.map((v) => v.id));
+  return {
+    ...payload,
+    patients: keptPatients,
+    visits: keptVisits,
+    visitImages: (payload.visitImages ?? []).filter((img) => keptVisitIds.has(img.visitId)),
+    inbodyRecords: (payload.inbodyRecords ?? []).filter((r) => keptVisitIds.has(r.visitId)),
+  };
+}
+
+async function purgeAndReloadCritical(): Promise<{ patients: Patient[]; visits: Visit[] } | null> {
+  try {
+    let removed = 0;
+    if (!localStorage.getItem(ONE_TIME_PRODUCTION_PURGE_KEY)) {
+      removed += await purgePatientsExceptChartNos(PRODUCTION_CHART_NOS);
+      localStorage.setItem(ONE_TIME_PRODUCTION_PURGE_KEY, new Date().toISOString());
+    }
+    removed += await purgePatientsWithChartNos(TEST_SEED_CHART_NOS);
+    if (removed === 0) return null;
+    const refreshed = await loadCriticalFromSupabase(10000);
+    if (refreshed.status === 'loaded') return refreshed.data;
+  } catch (err) {
+    console.error('[init] 테스트 데이터 정리 실패', err);
+  }
+  return null;
+}
+
 function applyDataCache(payload: DataCachePayload): void {
-  replaceArray(patients, payload.patients);
-  replaceArray(visits, payload.visits);
+  const filtered = filterCacheToPreserved(payload);
+  replaceArray(patients, filtered.patients);
+  replaceArray(visits, filtered.visits);
   replaceArray(
     visitImages,
     dedupeVisitImages(
-      (payload.visitImages ?? []).filter((img) => isPersistableMediaUrl(img.url)),
+      (filtered.visitImages ?? []).filter((img) => isPersistableMediaUrl(img.url)),
     ),
   );
   replaceArray(
     inbodyRecords,
-    (payload.inbodyRecords ?? []).filter((r) => isPersistableMediaUrl(r.sheetImageUrl)),
+    (filtered.inbodyRecords ?? []).filter((r) => isPersistableMediaUrl(r.sheetImageUrl)),
   );
   recalcTodayStats();
 }
@@ -1293,10 +1036,18 @@ export async function retryInitData(): Promise<boolean> {
   }
   if (result.status === 'loaded') {
     if (!shouldApplyInitData()) return true;
-    replaceArray(patients, result.data.patients);
-    replaceArray(visits, result.data.visits);
-    replaceArray(visitImages, dedupeVisitImages(result.data.visitImages));
-    replaceArray(inbodyRecords, result.data.inbodyRecords);
+    const purged = await purgeAndReloadCritical();
+    if (purged) {
+      replaceArray(patients, purged.patients);
+      replaceArray(visits, purged.visits);
+      const secondary = await loadSecondaryFromSupabase(12000, 2);
+      applySecondaryOrCache(secondary);
+    } else {
+      replaceArray(patients, result.data.patients);
+      replaceArray(visits, result.data.visits);
+      replaceArray(visitImages, dedupeVisitImages(result.data.visitImages));
+      replaceArray(inbodyRecords, result.data.inbodyRecords);
+    }
     recalcTodayStats();
     offlineMode = false;
     allowCacheWrite = true;
@@ -1331,8 +1082,14 @@ async function doInit(): Promise<void> {
 
   if (result.status === 'loaded') {
     if (!shouldApplyInitData()) return;
-    replaceArray(patients, result.data.patients);
-    replaceArray(visits, result.data.visits);
+    const purged = await purgeAndReloadCritical();
+    if (purged) {
+      replaceArray(patients, purged.patients);
+      replaceArray(visits, purged.visits);
+    } else {
+      replaceArray(patients, result.data.patients);
+      replaceArray(visits, result.data.visits);
+    }
     recalcTodayStats();
     offlineMode = false;
     allowCacheWrite = true;

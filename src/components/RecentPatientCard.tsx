@@ -30,7 +30,7 @@ export default function RecentPatientCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-gray-900 truncate tracking-tight">
-            {patient.name} ({patient.sex}/{patient.ageAtToday})
+            {patient.name}
           </div>
           <div className="text-[10px] text-gray-500 mt-0.5">{patient.chartNo}</div>
           <div className="text-[10px] text-gray-500">{visit.date.replace(/-/g, '.')}</div>

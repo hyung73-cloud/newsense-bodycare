@@ -491,6 +491,52 @@ export async function loadAllFromSupabase(maxRetries = 2): Promise<LoadResult> {
   return { status: 'error' };
 }
 
+/** 지정한 차트번호 환자를 Supabase에서 삭제한다. (방문·사진·인바디는 FK cascade) */
+export async function purgePatientsWithChartNos(chartNos: string[]): Promise<number> {
+  if (!isSupabaseEnabled || !supabase) return 0;
+
+  const targets = new Set(chartNos.map((c) => c.trim()).filter(Boolean));
+  if (targets.size === 0) return 0;
+
+  const { data: rows, error } = await supabase.from('patients').select('id, chart_no');
+  if (error) throw error;
+
+  const deleteIds = (rows ?? [])
+    .filter((row) => targets.has(String(row.chart_no).trim()))
+    .map((row) => row.id as string);
+
+  if (deleteIds.length === 0) return 0;
+
+  const { error: deleteError } = await supabase.from('patients').delete().in('id', deleteIds);
+  if (deleteError) throw deleteError;
+
+  console.info(`[supabase] 지정 차트 환자 ${deleteIds.length}명 삭제`);
+  return deleteIds.length;
+}
+
+/** 보존 차트를 제외한 모든 환자를 삭제한다. */
+export async function purgePatientsExceptChartNos(keepChartNos: string[]): Promise<number> {
+  if (!isSupabaseEnabled || !supabase) return 0;
+
+  const keep = new Set(keepChartNos.map((c) => c.trim()).filter(Boolean));
+  if (keep.size === 0) throw new Error('보존할 차트번호가 없어 삭제를 중단했습니다.');
+
+  const { data: rows, error } = await supabase.from('patients').select('id, chart_no');
+  if (error) throw error;
+
+  const deleteIds = (rows ?? [])
+    .filter((row) => !keep.has(String(row.chart_no).trim()))
+    .map((row) => row.id as string);
+
+  if (deleteIds.length === 0) return 0;
+
+  const { error: deleteError } = await supabase.from('patients').delete().in('id', deleteIds);
+  if (deleteError) throw deleteError;
+
+  console.info(`[supabase] 테스트 환자 ${deleteIds.length}명 삭제 (보존: ${[...keep].join(', ')})`);
+  return deleteIds.length;
+}
+
 /** 최초 실행 시 현재 in-memory 샘플 데이터를 DB에 채운다. */
 export async function seedToSupabase(data: LoadedData): Promise<void> {
   if (!isSupabaseEnabled || !supabase) return;

@@ -131,7 +131,7 @@ export default function TodayVisitTable({ visits, className = '', onPackageUpdat
               <th className="table-head-cell text-center w-10">순번</th>
               <th className="table-head-cell text-left w-[4.5rem]">차트</th>
               <th className="table-head-cell text-left w-20">이름</th>
-              <th className="table-head-cell text-center w-16">성별/나이</th>
+              <th className="table-head-cell text-center w-16">나이</th>
               <th className="table-head-cell text-right w-12">체중</th>
               <th className="table-head-cell text-right w-12">허리</th>
               <th className="table-head-cell text-center w-10 px-1" title="사진">
@@ -163,7 +163,7 @@ export default function TodayVisitTable({ visits, className = '', onPackageUpdat
                   </Link>
                 </td>
                 <td className="px-2 py-2.5 text-gray-600 whitespace-nowrap align-middle text-center text-xs">
-                  {v.patient.sex}/{v.patient.ageAtToday}
+                  {v.patient.ageAtToday > 0 ? `${v.patient.ageAtToday}세` : '-'}
                 </td>
                 <td className="px-2 py-2.5 text-right font-medium align-middle tabular-nums text-xs">
                   {v.weightKg}

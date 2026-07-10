@@ -28,9 +28,7 @@ export default function PatientHeader({
           )}
         </div>
         <div>
-          <div className="text-xl font-bold text-gray-900">
-            {patient.name} ({patient.sex}성)
-          </div>
+          <div className="text-xl font-bold text-gray-900">{patient.name}</div>
           <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
             <span>{patient.chartNo}</span>
             <span>

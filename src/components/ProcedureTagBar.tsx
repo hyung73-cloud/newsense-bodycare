@@ -114,12 +114,7 @@ export default function ProcedureTagBar({ tags }: ProcedureTagBarProps) {
                   className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
                 >
                   <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {patient.name}
-                      <span className="text-xs text-gray-400 ml-2">
-                        {patient.sex}/{patient.ageAtToday}
-                      </span>
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{patient.name}</div>
                     <div className="text-xs text-gray-400 mt-0.5">
                       {patient.chartNo}
                       {patient.phone && ` · ${patient.phone}`}
