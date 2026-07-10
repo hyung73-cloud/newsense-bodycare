@@ -11,7 +11,7 @@ import ChangeChart from '../components/ChangeChart';
 import ResearchPanel from '../components/ResearchPanel';
 import VisitHistoryTable from '../components/VisitHistoryTable';
 import VisitFormModal from '../components/VisitFormModal';
-import InbodyUploadModal from '../components/InbodyUploadModal';
+import InbodyUploadModal, { type InbodyUploadPayload } from '../components/InbodyUploadModal';
 import { useToast } from '../context/ToastContext';
 import type { Visit, ImageType } from '../types';
 import {
@@ -32,6 +32,8 @@ import {
   hasVisitToday,
   setVisitPhotoFile,
   setInbodySheetFile,
+  applyInbodyOcrData,
+  isInbodyOcrEnabledForPatient,
   TODAY,
   type VisitFormData,
 } from '../api/mock';
@@ -200,18 +202,20 @@ export default function PatientProfilePage() {
     }
   };
 
-  const handleInbodyFileUpload = async (file: File) => {
-    if (!latestVisit) {
-      showToast('오늘 방문 기록이 없어 업로드할 수 없습니다.');
-      return;
+  const handleInbodyUpload = async ({ file, parsed, applyOcr }: InbodyUploadPayload) => {
+    if (!latestVisit || !id) {
+      throw new Error('오늘 방문 기록이 없어 업로드할 수 없습니다.');
     }
-    try {
-      await setInbodySheetFile(latestVisit.id, file);
-      setInbodyModalOpen(false);
-      bump();
+    if (applyOcr && parsed) {
+      applyInbodyOcrData(id, latestVisit.id, parsed);
+    }
+    await setInbodySheetFile(latestVisit.id, file);
+    setInbodyModalOpen(false);
+    bump();
+    if (applyOcr && parsed) {
+      showToast('인바디 기록지 저장 및 OCR 자동입력이 완료되었습니다.');
+    } else {
       showToast('인바디 결과지가 서버에 저장되었습니다.');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : '인바디 저장에 실패했습니다.');
     }
   };
 
@@ -450,8 +454,10 @@ export default function PatientProfilePage() {
       <InbodyUploadModal
         open={inbodyModalOpen}
         patientName={patient.name}
+        chartNo={patient.chartNo}
+        ocrEnabled={isInbodyOcrEnabledForPatient(patient)}
         onClose={() => setInbodyModalOpen(false)}
-        onUploadFile={handleInbodyFileUpload}
+        onUpload={handleInbodyUpload}
       />
     </div>
   );

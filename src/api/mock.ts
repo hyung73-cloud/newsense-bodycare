@@ -639,6 +639,97 @@ export async function setVisitPhotoFile(visitId: string, type: ImageType, file: 
   return img.url;
 }
 
+/** OCR 자동입력 비활성 차트 (수동 등록·기존 환자) */
+export const INBODY_OCR_SKIP_CHART_NOS = ['8853'];
+
+export function isInbodyOcrEnabledForPatient(patient: Patient): boolean {
+  return !INBODY_OCR_SKIP_CHART_NOS.includes(patient.chartNo.trim());
+}
+
+/** OCR 파싱 결과를 환자·방문·인바디 수치에 반영 */
+export function applyInbodyOcrData(
+  patientId: string,
+  visitId: string,
+  parsed: import('../lib/inbodyOcrTypes').InbodyParsedData,
+): void {
+  const patient = patients.find((p) => p.id === patientId);
+  const visit = visits.find((v) => v.id === visitId);
+  if (!patient || !visit) return;
+
+  if (parsed.heightCm != null && parsed.heightCm > 0) patient.heightCm = parsed.heightCm;
+  if (parsed.age != null && parsed.age > 0) {
+    patient.ageAtToday = Math.round(parsed.age);
+    if (!patient.birth?.trim()) {
+      const y = new Date().getFullYear() - Math.round(parsed.age);
+      patient.birth = `${y}.01.01`;
+    }
+  }
+  if (parsed.sex) patient.sex = parsed.sex;
+
+  if (parsed.weightKg != null) visit.weightKg = parsed.weightKg;
+  if (parsed.waistCm != null) visit.waistCm = parsed.waistCm;
+  if (parsed.bodyFatPct != null) visit.bodyFatPct = parsed.bodyFatPct;
+  if (parsed.skeletalMuscleKg != null) visit.skeletalMuscleKg = parsed.skeletalMuscleKg;
+  if (parsed.visceralLevel != null) visit.visceralLevel = Math.round(parsed.visceralLevel);
+
+  const summary = [
+    parsed.weightKg != null ? `체중 ${parsed.weightKg}kg` : null,
+    parsed.bodyFatPct != null ? `체지방 ${parsed.bodyFatPct}%` : null,
+    parsed.skeletalMuscleKg != null ? `골격근 ${parsed.skeletalMuscleKg}kg` : null,
+    parsed.visceralLevel != null ? `내장지방 ${parsed.visceralLevel}` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  if (summary) {
+    const tag = `인바디 OCR: ${summary}`;
+    visit.doctorNote = visit.doctorNote?.trim() ? `${visit.doctorNote}\n${tag}` : tag;
+  }
+
+  let inbody = inbodyRecords.find((r) => r.visitId === visitId);
+  if (!inbody) {
+    inbody = {
+      visitId,
+      weightKg: visit.weightKg,
+      skeletalMuscleKg: visit.skeletalMuscleKg,
+      bodyFatPct: visit.bodyFatPct,
+      visceralLevel: visit.visceralLevel,
+      bmrKcal: parsed.bmrKcal ?? 0,
+      abdominalFatRatio: parsed.abdominalFatRatio ?? 0,
+      smi: parsed.smi ?? 0,
+      sheetImageUrl: '',
+    };
+    inbodyRecords.push(inbody);
+  } else {
+    if (parsed.weightKg != null) inbody.weightKg = parsed.weightKg;
+    if (parsed.skeletalMuscleKg != null) inbody.skeletalMuscleKg = parsed.skeletalMuscleKg;
+    if (parsed.bodyFatPct != null) inbody.bodyFatPct = parsed.bodyFatPct;
+    if (parsed.visceralLevel != null) inbody.visceralLevel = Math.round(parsed.visceralLevel);
+    if (parsed.bmrKcal != null) inbody.bmrKcal = parsed.bmrKcal;
+    if (parsed.abdominalFatRatio != null) inbody.abdominalFatRatio = parsed.abdominalFatRatio;
+    if (parsed.smi != null) inbody.smi = parsed.smi;
+  }
+
+  visitImages
+    .filter((img) => img.visitId === visitId)
+    .forEach((img) => {
+      if (parsed.weightKg != null) img.weightKg = parsed.weightKg;
+      if (parsed.waistCm != null) img.waistCm = parsed.waistCm;
+    });
+
+  syncPatientStats(patientId);
+  recalcTodayStats();
+
+  const targetPatient = patient;
+  const targetVisit = visit;
+  const targetInbody = inbody;
+  void commitToServer('인바디 OCR 자동입력', async () => {
+    await persistPatient(targetPatient);
+    await persistVisit(targetVisit);
+    await persistInbody(targetInbody);
+  }).catch((err) => console.error('[sync] 인바디 OCR 저장 실패', err));
+}
+
 export async function setInbodySheetFile(visitId: string, file: File): Promise<string> {
   const url = assignObjectUrl(`inbody-${visitId}`, file);
   const visit = visits.find((v) => v.id === visitId);
@@ -680,6 +771,8 @@ export async function setInbodySheetFile(visitId: string, file: File): Promise<s
   } else if (record) {
     saveDataCache();
   }
+
+  return record?.sheetImageUrl ?? url;
 }
 
 export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visit | undefined {
