@@ -424,9 +424,9 @@ export default function PackageSelectPage() {
           <div className="animate-in fade-in duration-300">
             <section className="text-center mb-6">
               <h1 className="text-xl md:text-2xl font-extrabold text-gray-900 leading-snug">
-                측정부터 변화까지,
+                기존의 단순한 처방과 구매를 넘어,
                 <br />
-                기록으로 관리하는 <span className="text-primary">프리미엄 프로그램</span>
+                <span className="text-primary">적극적인 관리 프로그램</span>을 추천드립니다.
               </h1>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-5">
                 {FEATURES.map((f) => (
