@@ -136,7 +136,7 @@ export default function PackageReceiptModal({
                 value={packageName}
                 onChange={(e) => setPackageName(e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                placeholder="예: Basic · 체중관리"
+                placeholder="예: 2회진료권 · 체중관리"
               />
             </div>
 

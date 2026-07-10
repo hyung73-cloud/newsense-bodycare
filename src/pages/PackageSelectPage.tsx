@@ -70,9 +70,9 @@ const LEVELS: Level[] = [
   {
     key: 'basic',
     badge: 'LEVEL 1',
-    name: 'Basic',
+    name: '2회진료권',
     subtitle: '체중관리',
-    price: 29000,
+    price: 25000,
     color: 'text-green-600',
     ring: 'ring-green-500 border-green-500',
     chip: 'bg-green-50 text-green-700',
@@ -82,26 +82,26 @@ const LEVELS: Level[] = [
   {
     key: 'standard',
     badge: 'LEVEL 2',
-    name: 'Standard',
+    name: '5회진료권',
     subtitle: '건강관리',
-    price: 49000,
+    price: 65000,
     color: 'text-blue-600',
     ring: 'ring-blue-500 border-blue-500',
     chip: 'bg-blue-50 text-blue-700',
     icon: HeartPulse,
-    features: ['Basic 전체 포함', '허리둘레 측정', '체형사진', '당화혈색소 검사'],
+    features: ['2회진료권 전체 포함', '허리둘레 측정', '체형사진', '당화혈색소 검사'],
   },
   {
     key: 'premium',
     badge: 'LEVEL 3',
-    name: 'Premium',
+    name: '10회진료권',
     subtitle: '체형관리',
-    price: 69000,
+    price: 100000,
     color: 'text-purple-600',
     ring: 'ring-purple-500 border-purple-500',
     chip: 'bg-purple-50 text-purple-700',
     icon: Camera,
-    features: ['Standard 전체 포함', '카복시 관리', '체형기록', '변화 리포트'],
+    features: ['5회진료권 전체 포함', '카복시 관리', '체형기록', '변화 리포트'],
   },
 ];
 
@@ -635,7 +635,7 @@ export default function PackageSelectPage() {
             ) : (
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <p className="text-sm text-gray-500">
-                  Plus 프로그램은 <strong className="text-purple-600">Premium 체형관리</strong> 선택 시 이용 가능합니다.
+                  Plus 프로그램은 <strong className="text-purple-600">10회진료권 · 체형관리</strong> 선택 시 이용 가능합니다.
                 </p>
               </div>
             )}
