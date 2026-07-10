@@ -60,7 +60,8 @@ export default function PackageConsultModal({
       showToast('방문 패키지 상담이 등록되었습니다.');
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '상담 등록에 실패했습니다.');
+      const message = err instanceof Error ? err.message : '상담 등록에 실패했습니다.';
+      setError(message);
     } finally {
       setSubmitting(false);
     }

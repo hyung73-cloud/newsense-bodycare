@@ -44,7 +44,7 @@ async function channelRequest(
     const text = await res.text();
     let detail = text;
     try {
-      const json = JSON.parse(text) as { message?: string; type?: string; errors?: unknown };
+      const json = JSON.parse(text) as { message?: string; type?: string };
       detail = json.message || json.type || text;
     } catch {
       // keep raw text
@@ -56,6 +56,13 @@ async function channelRequest(
   const text = await res.text();
   if (!text) return {};
   return JSON.parse(text) as Record<string, unknown>;
+}
+
+function formatKrPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('82')) return `+${digits}`;
+  if (digits.startsWith('0')) return `+82${digits.slice(1)}`;
+  return `+82${digits}`;
 }
 
 function formatMessage(p: ConsultPayload): string {
@@ -95,6 +102,16 @@ function parseUserChats(res: Record<string, unknown>): ChannelUserChat[] {
   return (res.userChats as ChannelUserChat[] | undefined) ?? [];
 }
 
+async function listBotNames(env: Env): Promise<string[]> {
+  try {
+    const res = await channelRequest(env, '/bots?limit=25', 'GET');
+    const bots = (res.bots as Array<{ name?: string }> | undefined) ?? [];
+    return bots.map((b) => b.name).filter((n): n is string => Boolean(n));
+  } catch {
+    return [];
+  }
+}
+
 async function getOrCreateUserChat(env: Env, userId: string): Promise<string> {
   const listRes = await channelRequest(env, `/users/${userId}/user-chats?limit=25&sortOrder=desc`, 'GET');
   const chats = parseUserChats(listRes);
@@ -103,7 +120,7 @@ async function getOrCreateUserChat(env: Env, userId: string): Promise<string> {
   if (openChat?.id) return openChat.id;
 
   try {
-    const chatRes = await channelRequest(env, `/users/${userId}/user-chats`, 'POST', {});
+    const chatRes = await channelRequest(env, `/users/${userId}/user-chats`, 'POST');
     const created = chatRes.userChat as ChannelUserChat | undefined;
     if (created?.id) return created.id;
   } catch {
@@ -117,7 +134,9 @@ async function getOrCreateUserChat(env: Env, userId: string): Promise<string> {
 
 async function sendChatMessage(env: Env, userChatId: string, text: string): Promise<void> {
   const body = buildMessageBody(text);
+  const discovered = await listBotNames(env);
   const botCandidates = [
+    ...discovered,
     env.CHANNEL_BOT_NAME?.trim(),
     'Channel',
     '채널톡',
@@ -126,7 +145,6 @@ async function sendChatMessage(env: Env, userChatId: string, text: string): Prom
 
   let lastError: Error | null = null;
 
-  // 1) botName 없이 시도
   try {
     await channelRequest(env, `/user-chats/${userChatId}/messages`, 'POST', body);
     return;
@@ -134,7 +152,6 @@ async function sendChatMessage(env: Env, userChatId: string, text: string): Prom
     lastError = err instanceof Error ? err : new Error(String(err));
   }
 
-  // 2) 후보 botName으로 순차 시도
   for (const botName of botCandidates) {
     try {
       const path = `/user-chats/${userChatId}/messages?botName=${encodeURIComponent(botName)}`;
@@ -142,10 +159,6 @@ async function sendChatMessage(env: Env, userChatId: string, text: string): Prom
       return;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      const msg = lastError.message.toLowerCase();
-      if (!msg.includes('bot') && !msg.includes('404')) {
-        throw lastError;
-      }
     }
   }
 
@@ -157,10 +170,13 @@ function mapChannelError(err: unknown): string {
   const lower = msg.toLowerCase();
 
   if (lower.includes('botnotfound') || (lower.includes('bot') && lower.includes('404'))) {
-    return '채널톡 봇 이름이 맞지 않습니다. Cloudflare의 CHANNEL_BOT_NAME을 채널톡 데스크 봇 이름과 동일하게 설정해주세요.';
+    return '채널톡 봇을 찾지 못했습니다. 채널톡 데스크 → 설정 → 봇 이름을 확인해주세요.';
   }
   if (lower.includes('401') || lower.includes('403') || lower.includes('unauthorized')) {
     return '채널톡 API 키가 올바르지 않습니다. Access Key와 Secret을 다시 확인해주세요.';
+  }
+  if (lower.includes('userchat')) {
+    return '채널톡 상담방을 만들지 못했습니다. 잠시 후 다시 시도해주세요.';
   }
   return '상담 등록에 실패했습니다. 잠시 후 다시 시도해주세요.';
 }
@@ -183,7 +199,6 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       return jsonResponse({ error: '채널톡 API가 설정되지 않았습니다. 관리자에게 문의해주세요.' }, 503);
     }
 
-    const phone = payload.phone.trim();
     const userRes = await channelRequest(
       context.env,
       `/users/@${encodeURIComponent(memberId)}`,
@@ -191,7 +206,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
       {
         profile: {
           name: payload.name.trim(),
-          mobileNumber: phone,
+          mobileNumber: formatKrPhone(payload.phone),
         },
         tags: ['방문패키지상담', 'BodyCare'],
       },
@@ -204,6 +219,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     return jsonResponse({ ok: true });
   } catch (err) {
     console.error('[package-consult]', err);
-    return jsonResponse({ error: mapChannelError(err) }, 500);
+    const message = err instanceof Error ? err.message : String(err);
+    return jsonResponse({ error: mapChannelError(err), detail: message }, 500);
   }
 };
