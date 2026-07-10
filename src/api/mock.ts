@@ -27,8 +27,6 @@ import {
   uploadFile,
   dedupeVisitImages,
   deleteOtherVisitImages,
-  purgePatientsWithChartNos,
-  purgePatientsExceptChartNos,
 } from './supabaseData';
 import { isPersistableMediaUrl, isSampleOrBlobUrl, pickBestImage } from '../lib/mediaUrl';
 
@@ -62,6 +60,7 @@ const INBODY_SHEET =
 
 void PLACEHOLDER_FRONT;
 void PLACEHOLDER_SIDE;
+void INBODY_SHEET;
 
 const _now = new Date();
 const _pad = (n: number) => String(n).padStart(2, '0');
@@ -74,13 +73,8 @@ export const TODAY_DISPLAY = `${_now.getFullYear()}.${_pad(_now.getMonth() + 1)}
 
 export const staff: StaffInfo = { name: '김민수' };
 
-/** 운영 DB에서 삭제할 시드(테스트) 차트번호 */
+/** 운영 DB에서 삭제할 시드(테스트) 차트번호 — 수동 SQL 정리용. 앱 시작 시 자동 삭제하지 않음. */
 export const TEST_SEED_CHART_NOS = ['000125', '000118', '000132', '000109', '000141', '000098'];
-
-/** 실제 등록 환자 — 일회성 전체 정리 시 보존 */
-export const PRODUCTION_CHART_NOS = ['8853'];
-
-const ONE_TIME_PRODUCTION_PURGE_KEY = 'bodycare-production-purge-8853-v1';
 
 export const patients: Patient[] = [];
 
@@ -319,19 +313,6 @@ export function addVisitToday(patientId: string, data: VisitFormData): Visit {
     hidden: false,
   };
   visits.push(visit);
-
-  const inbody: InbodyRecord = {
-    visitId: id,
-    weightKg: data.weightKg,
-    skeletalMuscleKg: data.skeletalMuscleKg,
-    bodyFatPct: data.bodyFatPct,
-    visceralLevel: data.visceralLevel,
-    bmrKcal: 1178,
-    abdominalFatRatio: 0.85,
-    smi: 6.1,
-    sheetImageUrl: '',
-  };
-  inbodyRecords.push(inbody);
 
   syncPatientStats(patientId);
   recalcTodayStats();
@@ -577,26 +558,11 @@ export function markLatestVisitInbodyUploaded(patientId: string): boolean {
   visit.inbodyUploaded = true;
   if (visit.status === '미완료') visit.status = '진행중';
 
-  let inbody = inbodyRecords.find((r) => r.visitId === visit.id);
-  if (!inbody) {
-    inbody = {
-      visitId: visit.id,
-      weightKg: visit.weightKg,
-      skeletalMuscleKg: visit.skeletalMuscleKg,
-      bodyFatPct: visit.bodyFatPct,
-      visceralLevel: visit.visceralLevel,
-      bmrKcal: 1178,
-      abdominalFatRatio: 0.85,
-      smi: 6.1,
-      sheetImageUrl: INBODY_SHEET,
-    };
-    inbodyRecords.push(inbody);
-  }
-
   recalcTodayStats();
   void commitToServer('인바디 완료', async () => {
     await persistVisit(visit);
-    await persistInbody(inbody!);
+    const inbody = inbodyRecords.find((r) => r.visitId === visit.id);
+    if (inbody?.sheetImageUrl) await persistInbody(inbody);
   }).catch((err) => console.error('[sync] 인바디 완료 저장 실패', err));
   return true;
 }
@@ -665,6 +631,7 @@ export async function setVisitPhotoFile(visitId: string, type: ImageType, file: 
         if (p) await persistPatient(p);
       }
     });
+    saveDataCache();
   } else {
     saveDataCache();
   }
@@ -709,9 +676,10 @@ export async function setInbodySheetFile(visitId: string, file: File): Promise<s
       await persistInbody(record, uploaded.path);
       if (visit) await persistVisit(visit);
     });
+    saveDataCache();
+  } else if (record) {
+    saveDataCache();
   }
-
-  return record?.sheetImageUrl ?? url;
 }
 
 export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visit | undefined {
@@ -876,6 +844,27 @@ function shouldApplyInitData(): boolean {
   return lastMutationAt <= initStartedAt;
 }
 
+function mergeVisitImages(serverImages: VisitImage[]): void {
+  replaceArray(visitImages, dedupeVisitImages([...visitImages, ...serverImages]));
+}
+
+function mergeInbodyRecords(serverRecords: InbodyRecord[]): void {
+  const byVisit = new Map(inbodyRecords.map((r) => [r.visitId, r]));
+  for (const rec of serverRecords) {
+    const prev = byVisit.get(rec.visitId);
+    if (!prev) {
+      byVisit.set(rec.visitId, rec);
+      continue;
+    }
+    byVisit.set(rec.visitId, {
+      ...prev,
+      ...rec,
+      sheetImageUrl: rec.sheetImageUrl || prev.sheetImageUrl,
+    });
+  }
+  replaceArray(inbodyRecords, [...byVisit.values()]);
+}
+
 function applySecondaryOrCache(secondary: SecondaryData | null): void {
   if (!shouldApplyInitData()) {
     console.info('[init] 업로드 이후 초기화 완료 — 메모리 사진 데이터 유지');
@@ -883,8 +872,8 @@ function applySecondaryOrCache(secondary: SecondaryData | null): void {
   }
 
   if (secondary) {
-    replaceArray(visitImages, dedupeVisitImages(secondary.visitImages));
-    replaceArray(inbodyRecords, secondary.inbodyRecords);
+    mergeVisitImages(secondary.visitImages);
+    mergeInbodyRecords(secondary.inbodyRecords);
     return;
   }
 
@@ -896,15 +885,13 @@ function applySecondaryOrCache(secondary: SecondaryData | null): void {
     ) ?? [],
   );
   const cachedInbody =
-    cache?.inbodyRecords?.filter(
-      (r) => visitIds.has(r.visitId) && isPersistableMediaUrl(r.sheetImageUrl),
-    ) ?? [];
-  replaceArray(visitImages, cachedImages);
-  replaceArray(inbodyRecords, cachedInbody);
+    cache?.inbodyRecords?.filter((r) => visitIds.has(r.visitId)) ?? [];
+  if (cachedImages.length > 0) mergeVisitImages(cachedImages);
+  if (cachedInbody.length > 0) mergeInbodyRecords(cachedInbody);
   if (cachedImages.length === 0 && cachedInbody.length === 0) {
     console.warn('[init] 사진/인바디 서버 로드 실패 — 캐시에도 유효한 이미지 없음');
   } else {
-    console.warn('[init] 사진/인바디 서버 로드 실패 → 로컬 캐시 이미지 사용');
+    console.warn('[init] 사진/인바디 서버 로드 실패 → 로컬 캐시 이미지 병합');
   }
 }
 
@@ -914,11 +901,12 @@ function isPersistableUrl(url: string | undefined): boolean {
 
 function saveDataCache(): void {
   try {
+    const visitIds = new Set(visits.map((v) => v.id));
     const payload: DataCachePayload = {
       patients: [...patients],
       visits: [...visits],
       visitImages: visitImages.filter((img) => isPersistableUrl(img.url)),
-      inbodyRecords: inbodyRecords.filter((r) => isPersistableUrl(r.sheetImageUrl)),
+      inbodyRecords: inbodyRecords.filter((r) => visitIds.has(r.visitId)),
       savedAt: new Date().toISOString(),
     };
     localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(payload));
@@ -953,23 +941,6 @@ function filterCacheToPreserved(payload: DataCachePayload): DataCachePayload {
   };
 }
 
-async function purgeAndReloadCritical(): Promise<{ patients: Patient[]; visits: Visit[] } | null> {
-  try {
-    let removed = 0;
-    if (!localStorage.getItem(ONE_TIME_PRODUCTION_PURGE_KEY)) {
-      removed += await purgePatientsExceptChartNos(PRODUCTION_CHART_NOS);
-      localStorage.setItem(ONE_TIME_PRODUCTION_PURGE_KEY, new Date().toISOString());
-    }
-    removed += await purgePatientsWithChartNos(TEST_SEED_CHART_NOS);
-    if (removed === 0) return null;
-    const refreshed = await loadCriticalFromSupabase(10000);
-    if (refreshed.status === 'loaded') return refreshed.data;
-  } catch (err) {
-    console.error('[init] 테스트 데이터 정리 실패', err);
-  }
-  return null;
-}
-
 function applyDataCache(payload: DataCachePayload): void {
   const filtered = filterCacheToPreserved(payload);
   replaceArray(patients, filtered.patients);
@@ -982,7 +953,7 @@ function applyDataCache(payload: DataCachePayload): void {
   );
   replaceArray(
     inbodyRecords,
-    (filtered.inbodyRecords ?? []).filter((r) => isPersistableMediaUrl(r.sheetImageUrl)),
+    filtered.inbodyRecords ?? [],
   );
   recalcTodayStats();
 }
@@ -1036,18 +1007,10 @@ export async function retryInitData(): Promise<boolean> {
   }
   if (result.status === 'loaded') {
     if (!shouldApplyInitData()) return true;
-    const purged = await purgeAndReloadCritical();
-    if (purged) {
-      replaceArray(patients, purged.patients);
-      replaceArray(visits, purged.visits);
-      const secondary = await loadSecondaryFromSupabase(12000, 2);
-      applySecondaryOrCache(secondary);
-    } else {
-      replaceArray(patients, result.data.patients);
-      replaceArray(visits, result.data.visits);
-      replaceArray(visitImages, dedupeVisitImages(result.data.visitImages));
-      replaceArray(inbodyRecords, result.data.inbodyRecords);
-    }
+    replaceArray(patients, result.data.patients);
+    replaceArray(visits, result.data.visits);
+    mergeVisitImages(dedupeVisitImages(result.data.visitImages));
+    mergeInbodyRecords(result.data.inbodyRecords);
     recalcTodayStats();
     offlineMode = false;
     allowCacheWrite = true;
@@ -1082,14 +1045,8 @@ async function doInit(): Promise<void> {
 
   if (result.status === 'loaded') {
     if (!shouldApplyInitData()) return;
-    const purged = await purgeAndReloadCritical();
-    if (purged) {
-      replaceArray(patients, purged.patients);
-      replaceArray(visits, purged.visits);
-    } else {
-      replaceArray(patients, result.data.patients);
-      replaceArray(visits, result.data.visits);
-    }
+    replaceArray(patients, result.data.patients);
+    replaceArray(visits, result.data.visits);
     recalcTodayStats();
     offlineMode = false;
     allowCacheWrite = true;
