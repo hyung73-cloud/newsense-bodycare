@@ -103,11 +103,7 @@ export default function PackageConsultModal({
             </div>
 
             <p className="text-[11px] text-gray-500 leading-relaxed px-1">
-              아래 버튼을 누르면 카카오톡 상담창이 열립니다.
-              <br />
-              ① 채널 추가 안내가 나오면 <strong className="text-gray-600">「예」</strong>를 눌러 주세요.
-              <br />
-              ② 카카오톡 안의 노란 버튼을 누른 뒤 <strong className="text-gray-600">이름을 한 번</strong> 입력해 주세요.
+              ⚠️ 노란 버튼을 누른 후 &quot;예&quot;라고 입력하셔야 합니다~
             </p>
 
             <button
