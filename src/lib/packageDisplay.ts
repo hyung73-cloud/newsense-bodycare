@@ -12,7 +12,7 @@ const LEGACY_PACKAGES: Record<string, { price: number; items: string }> = {
   },
   '10회진료권 · 체형관리': {
     price: 170000,
-    items: '5회진료권 전체 포함, 카복시 관리, HPL(+5), 변화 리포트',
+    items: '5회진료권 전체 포함, 카복시 관리(4회), HPL(+5), 변화 리포트',
   },
   'Basic · 체중관리': {
     price: 29000,

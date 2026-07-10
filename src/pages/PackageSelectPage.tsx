@@ -103,7 +103,7 @@ const LEVELS: Level[] = [
     ring: 'ring-purple-500 border-purple-500',
     chip: 'bg-purple-50 text-purple-700',
     icon: Camera,
-    features: ['5회진료권 전체 포함', '카복시 관리', 'HPL(+5)', '변화 리포트'],
+    features: ['5회진료권 전체 포함', '카복시 관리(4회)', 'HPL(+5)', '변화 리포트'],
   },
 ];
 
