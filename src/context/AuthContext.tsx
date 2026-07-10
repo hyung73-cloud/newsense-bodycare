@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PinLoginGate from '../components/PinLoginGate';
-import { getDefaultAdminName } from '../auth/adminAuth';
+import { getDefaultAdminName, initAdmins } from '../auth/adminAuth';
 import { signInClinic, signOutClinic, restoreClinicSession, isClinicAuthEnabled } from '../auth/clinicAuth';
 import { setStaffName, resetInitPromise } from '../api/mock';
 
@@ -40,7 +40,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!cancelled) setBooting(false);
     };
 
-    const bootTimeout = window.setTimeout(finishBoot, 6000);
+    const bootTimeout = window.setTimeout(finishBoot, 8000);
+
+    const bootAdmins = async () => {
+      try {
+        await initAdmins();
+      } catch {
+        /* 서버 실패 시 로컬/기본값 유지 */
+      }
+    };
+
+    const finishAuthBoot = async () => {
+      await bootAdmins();
+      window.clearTimeout(bootTimeout);
+      finishBoot();
+    };
 
     if (savedAuth && isClinicAuthEnabled()) {
       void restoreClinicSession()
@@ -58,8 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthenticated(false);
         })
         .finally(() => {
-          window.clearTimeout(bootTimeout);
-          finishBoot();
+          void finishAuthBoot();
         });
       return () => {
         cancelled = true;
@@ -67,11 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    window.clearTimeout(bootTimeout);
+    void finishAuthBoot();
     setAuthenticated(savedAuth);
-    finishBoot();
     return () => {
       cancelled = true;
+      window.clearTimeout(bootTimeout);
     };
   }, []);
 
@@ -98,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-surface text-gray-500">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-sm">앱 준비 중…</p>
+        <p className="text-sm">관리자 목록 불러오는 중…</p>
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LockKeyhole } from 'lucide-react';
 import { getAdminAccounts, getDefaultAdminName, verifyAdminPin } from '../auth/adminAuth';
 
@@ -10,13 +10,20 @@ interface PinLoginGateProps {
 }
 
 export default function PinLoginGate({ onLogin }: PinLoginGateProps) {
-  const adminAccounts = getAdminAccounts();
-  const defaultName = getDefaultAdminName();
-
-  const [adminName, setAdminName] = useState(defaultName);
+  const [adminAccounts, setAdminAccounts] = useState(() => getAdminAccounts());
+  const [adminName, setAdminName] = useState(() => getDefaultAdminName());
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const accounts = getAdminAccounts();
+    setAdminAccounts(accounts);
+    setAdminName((prev) => {
+      if (accounts.some((a) => a.name === prev)) return prev;
+      return accounts[0]?.name ?? prev;
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

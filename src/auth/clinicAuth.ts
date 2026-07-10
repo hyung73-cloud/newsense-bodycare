@@ -26,6 +26,36 @@ async function getSessionWithTimeout(timeoutMs = 5000) {
   }
 }
 
+/** 로그인 화면 표시 전 관리자 목록 조회용 — RLS authenticated 세션 확보 */
+export async function bootstrapClinicSession(): Promise<boolean> {
+  if (!isClinicAuthEnabled() || !supabase) return false;
+
+  const { data } = await getSessionWithTimeout(3000);
+  if (data.session?.access_token) return true;
+
+  const password =
+    (import.meta.env.VITE_CLINIC_AUTH_PASSWORD as string | undefined)?.trim() || '327288';
+
+  try {
+    const { error } = await Promise.race([
+      supabase.auth.signInWithPassword({ email: AUTH_EMAIL, password }),
+      new Promise<Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>>((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              data: { user: null, session: null },
+              error: { message: 'timeout', name: 'TimeoutError', status: 408 },
+            } as Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>),
+          8000,
+        ),
+      ),
+    ]);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 클리닉 공용 계정으로 Supabase Auth 세션 발급.
  * PIN 검증은 기존 adminAuth에서 수행한 뒤 호출한다.

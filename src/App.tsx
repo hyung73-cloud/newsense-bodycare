@@ -27,7 +27,7 @@ export default function App() {
   const runInit = async () => {
     setLoadingPhase('서버 연결 중…');
     await initData();
-    void initAdmins();
+    await initAdmins();
     syncState();
   };
 

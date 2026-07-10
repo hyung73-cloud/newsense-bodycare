@@ -1,4 +1,5 @@
 import { isSupabaseEnabled } from '../lib/supabase';
+import { bootstrapClinicSession } from '../auth/clinicAuth';
 import { loadAdmins, persistAdmins } from '../api/supabaseData';
 
 export interface AdminAccount {
@@ -63,6 +64,7 @@ export function saveAdminAccounts(accounts: AdminAccount[]): void {
  */
 export async function initAdmins(): Promise<void> {
   if (!isSupabaseEnabled) return;
+  await bootstrapClinicSession();
   const remote = await loadAdmins();
   if (remote === null) return; // 로드 실패 → 로컬 유지
   if (remote.length === 0) {
