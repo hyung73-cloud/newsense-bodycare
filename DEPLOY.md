@@ -39,7 +39,15 @@ git push -u origin main
 | Build output directory | `dist` |
 | Node.js version | 20 (Environment variables → `NODE_VERSION` = `20`) |
 
-5. **Save and Deploy** 클릭
+5. **Environment variables** (Settings → Environment variables) — 채널톡 방문 상담용:
+
+| 변수 | 설명 |
+|------|------|
+| `CHANNEL_ACCESS_KEY` | 채널톡 데스크 → 설정 → API Key management |
+| `CHANNEL_ACCESS_SECRET` | 위와 함께 발급 |
+| `CHANNEL_BOT_NAME` | (선택) 메시지 발신 봇 이름, 기본값 `Channel` |
+
+6. **Save and Deploy** 클릭
 
 첫 배포가 끝나면 `https://newsense-bodycare.pages.dev` 같은 임시 URL이 생깁니다.
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { registerPackageToday } from '../api/mock';
+import PackageConsultModal from '../components/PackageConsultModal';
 import {
   Activity,
   ClipboardCheck,
@@ -22,6 +23,7 @@ import {
   Ticket,
   UserPlus,
   Printer,
+  CalendarClock,
 } from 'lucide-react';
 
 /* ── 데이터 ── */
@@ -183,6 +185,7 @@ export default function PackageSelectPage() {
   const [focusedSelection, setFocusedSelection] = useState<FocusedSelection | null>(null);
   const [selectedPlus, setSelectedPlus] = useState<string | null>(null);
   const [patientModalOpen, setPatientModalOpen] = useState(false);
+  const [consultModalOpen, setConsultModalOpen] = useState(false);
   const [patientName, setPatientName] = useState('');
   const [chartNo, setChartNo] = useState('');
   const [issued, setIssued] = useState(false);
@@ -213,6 +216,8 @@ export default function PackageSelectPage() {
     if (plusOption) list.push({ label: `${plusOption.name} 충전권`, sub: 'Plus 충전', price: plusOption.price, kind: 'plus' });
     return list;
   }, [level, procSelections, focusedSelection, plusOption]);
+
+  const packageSummary = useMemo(() => tickets.map((t) => t.label).join(', '), [tickets]);
 
   const openPatientModal = () => {
     setPatientName('');
@@ -721,15 +726,26 @@ export default function PackageSelectPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={openPatientModal}
-              disabled={!level}
-              className="hidden md:flex w-full items-center justify-center gap-2 bg-primary hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-3.5 rounded-xl transition-colors"
-            >
-              <UserPlus className="w-5 h-5" />
-              패키지 등록하기
-            </button>
+            <div className="hidden md:flex w-full gap-2">
+              <button
+                type="button"
+                onClick={openPatientModal}
+                disabled={!level}
+                className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-3.5 rounded-xl transition-colors"
+              >
+                <UserPlus className="w-5 h-5" />
+                패키지 등록하기
+              </button>
+              <button
+                type="button"
+                onClick={() => setConsultModalOpen(true)}
+                disabled={!level}
+                className="flex-1 flex items-center justify-center gap-2 border-2 border-primary text-primary hover:bg-primary/5 disabled:border-gray-300 disabled:text-gray-400 disabled:bg-gray-50 font-bold py-3.5 rounded-xl transition-colors text-sm"
+              >
+                <CalendarClock className="w-5 h-5 flex-shrink-0" />
+                방문패키지상담등록하기
+              </button>
+            </div>
           </div>
         )}
 
@@ -766,13 +782,37 @@ export default function PackageSelectPage() {
               다음 <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
-            <button type="button" onClick={openPatientModal} disabled={!level} className="flex-1 flex items-center justify-center gap-2 bg-primary text-white font-bold py-3 rounded-xl disabled:bg-gray-300">
-              <UserPlus className="w-5 h-5" /> 패키지 등록하기
-            </button>
+            <div className="flex-1 flex gap-2 min-w-0">
+              <button
+                type="button"
+                onClick={openPatientModal}
+                disabled={!level}
+                className="flex-1 flex items-center justify-center gap-1 bg-primary text-white font-bold py-3 rounded-xl disabled:bg-gray-300 text-xs"
+              >
+                <UserPlus className="w-4 h-4 flex-shrink-0" />
+                패키지 등록
+              </button>
+              <button
+                type="button"
+                onClick={() => setConsultModalOpen(true)}
+                disabled={!level}
+                className="flex-1 flex items-center justify-center gap-1 border-2 border-primary text-primary font-bold py-3 rounded-xl disabled:border-gray-300 disabled:text-gray-400 text-xs"
+              >
+                <CalendarClock className="w-4 h-4 flex-shrink-0" />
+                방문상담 등록
+              </button>
+            </div>
           )}
         </div>
       </div>
       )}
+
+      <PackageConsultModal
+        open={consultModalOpen}
+        onClose={() => setConsultModalOpen(false)}
+        packageSummary={packageSummary}
+        total={total}
+      />
 
       {/* 환자 정보 입력 모달 */}
       {patientModalOpen && (
