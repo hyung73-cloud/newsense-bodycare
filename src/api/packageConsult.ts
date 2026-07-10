@@ -8,8 +8,7 @@ export interface PackageConsultPayload {
 }
 
 export interface PackageConsultResult {
-  userChatSent?: boolean;
-  groupSent?: boolean;
+  ok?: boolean;
 }
 
 export async function submitPackageConsult(payload: PackageConsultPayload): Promise<PackageConsultResult> {
@@ -32,5 +31,5 @@ export async function submitPackageConsult(payload: PackageConsultPayload): Prom
     throw new Error(data.detail ? `${main}\n${data.detail}` : main);
   }
 
-  return { userChatSent: data.userChatSent, groupSent: data.groupSent };
+  return { ok: data.ok };
 }
