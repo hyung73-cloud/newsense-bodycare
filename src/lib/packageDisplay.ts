@@ -3,16 +3,16 @@ import type { PackageTicketLine, Visit } from '../types';
 /** 기존 데이터(이름만 저장) 호환용 */
 const LEGACY_PACKAGES: Record<string, { price: number; items: string }> = {
   '2회진료권 · 체중관리': {
-    price: 25000,
+    price: 35000,
     items: '인바디, 맞춤처방, 생활습관 가이드, 씨앤유 처방',
   },
   '5회진료권 · 건강관리': {
-    price: 65000,
-    items: '2회진료권 전체 포함, 허리둘레 측정, 체형사진, 당화혈색소 검사',
+    price: 85000,
+    items: '2회진료권 전체 포함, 허리둘레 측정, 체형사진(+1), 당화혈색소 검사',
   },
   '10회진료권 · 체형관리': {
-    price: 100000,
-    items: '5회진료권 전체 포함, 카복시 관리, 체형기록, 변화 리포트',
+    price: 170000,
+    items: '5회진료권 전체 포함, 카복시 관리, HPL(+5), 변화 리포트',
   },
   'Basic · 체중관리': {
     price: 29000,
