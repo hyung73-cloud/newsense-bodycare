@@ -199,6 +199,7 @@ async function sendUserChatInquiry(env: Env, userChatId: string, text: string): 
   const candidates = [
     ...botNames,
     env.CHANNEL_BOT_NAME?.trim(),
+    '뉴센스의원 BOT',
     '채널톡',
     'Channel',
     'channelBot',
@@ -224,6 +225,7 @@ async function sendGroupNotification(env: Env, text: string): Promise<boolean> {
   const candidates = [
     ...botNames,
     env.CHANNEL_BOT_NAME?.trim(),
+    '뉴센스의원 BOT',
     '채널톡',
     'Channel',
     'channelBot',
