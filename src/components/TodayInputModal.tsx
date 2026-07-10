@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { X, UserPlus, UserRound } from 'lucide-react';
-import type { Sex } from '../types';
 import type { NewPatientFormData, VisitFormData } from '../api/mock';
 import {
   clearTodayInputDraft,
@@ -30,20 +29,17 @@ interface DraftShape {
 
 const defaultPatient: NewPatientFormData = {
   name: '',
-  sex: '여',
-  birth: '',
-  heightCm: 165,
-  phone: '',
+  chartNo: '',
 };
 
 const defaultVisit: VisitFormData = {
-  weightKg: 70,
-  waistCm: 84,
-  bodyFatPct: 38,
-  skeletalMuscleKg: 22,
-  visceralLevel: 10,
+  weightKg: 0,
+  waistCm: 0,
+  bodyFatPct: 0,
+  skeletalMuscleKg: 0,
+  visceralLevel: 0,
   doctorNote: '',
-  status: '진행중',
+  status: '미완료',
   photoUploaded: false,
   inbodyUploaded: false,
 };
@@ -68,7 +64,7 @@ export default function TodayInputModal({ open, onClose, onSuccess }: TodayInput
     } else {
       setMode('new');
       setPatientForm(defaultPatient);
-      setVisitForm({ ...defaultVisit, doctorNote: '신규 환자 오늘 입력' });
+      setVisitForm(defaultVisit);
       setSearchQuery('');
       setSelectedPatientId('');
     }
@@ -98,8 +94,12 @@ export default function TodayInputModal({ open, onClose, onSuccess }: TodayInput
         setError('환자 이름을 입력해주세요.');
         return;
       }
-      if (!patientForm.birth.trim()) {
-        setError('생년월일을 입력해주세요.');
+      if (!patientForm.chartNo.trim()) {
+        setError('고유차트번호를 입력해주세요.');
+        return;
+      }
+      if (allPatients.some((p) => p.chartNo === patientForm.chartNo.trim())) {
+        setError('이미 사용 중인 차트번호입니다.');
         return;
       }
       const { patient } = createPatientWithTodayVisit(patientForm, visitForm);
@@ -146,20 +146,8 @@ export default function TodayInputModal({ open, onClose, onSuccess }: TodayInput
               <Field label="이름">
                 <input value={patientForm.name} onChange={(e) => setPatientForm((p) => ({ ...p, name: e.target.value }))} className="input-field" required />
               </Field>
-              <Field label="성별">
-                <select value={patientForm.sex} onChange={(e) => setPatientForm((p) => ({ ...p, sex: e.target.value as Sex }))} className="input-field">
-                  <option value="여">여</option>
-                  <option value="남">남</option>
-                </select>
-              </Field>
-              <Field label="생년월일 (예: 1990.01.01)">
-                <input value={patientForm.birth} onChange={(e) => setPatientForm((p) => ({ ...p, birth: e.target.value }))} className="input-field" placeholder="1990.01.01" required />
-              </Field>
-              <Field label="키 (cm)">
-                <input type="number" value={patientForm.heightCm} onChange={(e) => setPatientForm((p) => ({ ...p, heightCm: Number(e.target.value) }))} className="input-field" required />
-              </Field>
-              <Field label="전화번호">
-                <input value={patientForm.phone ?? ''} onChange={(e) => setPatientForm((p) => ({ ...p, phone: e.target.value }))} className="input-field" placeholder="010-0000-0000" />
+              <Field label="고유차트번호">
+                <input value={patientForm.chartNo} onChange={(e) => setPatientForm((p) => ({ ...p, chartNo: e.target.value }))} className="input-field" placeholder="예: 000123" required />
               </Field>
             </div>
           ) : (
@@ -188,7 +176,16 @@ export default function TodayInputModal({ open, onClose, onSuccess }: TodayInput
             </div>
           )}
 
-          <VisitFields form={visitForm} setVisit={setVisit} />
+          <div className="border-t border-gray-100 pt-4 flex gap-6 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={visitForm.photoUploaded} onChange={(e) => setVisit('photoUploaded', e.target.checked)} />
+              사진 완료
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={visitForm.inbodyUploaded} onChange={(e) => setVisit('inbodyUploaded', e.target.checked)} />
+              인바디 완료
+            </label>
+          </div>
 
           {error && <p className="text-xs text-red-500">{error}</p>}
 
@@ -200,41 +197,6 @@ export default function TodayInputModal({ open, onClose, onSuccess }: TodayInput
             </div>
           </div>
         </form>
-      </div>
-    </div>
-  );
-}
-
-function VisitFields({
-  form,
-  setVisit,
-}: {
-  form: VisitFormData;
-  setVisit: <K extends keyof VisitFormData>(key: K, value: VisitFormData[K]) => void;
-}) {
-  return (
-    <div className="border-t border-gray-100 pt-4">
-      <h4 className="text-xs font-bold text-gray-700 mb-3">오늘 측정 기록</h4>
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="체중 (kg)"><input type="number" step="0.1" value={form.weightKg} onChange={(e) => setVisit('weightKg', Number(e.target.value))} className="input-field" required /></Field>
-        <Field label="허리 (cm)"><input type="number" step="0.1" value={form.waistCm} onChange={(e) => setVisit('waistCm', Number(e.target.value))} className="input-field" required /></Field>
-        <Field label="체지방 (%)"><input type="number" step="0.1" value={form.bodyFatPct} onChange={(e) => setVisit('bodyFatPct', Number(e.target.value))} className="input-field" required /></Field>
-        <Field label="골격근 (kg)"><input type="number" step="0.1" value={form.skeletalMuscleKg} onChange={(e) => setVisit('skeletalMuscleKg', Number(e.target.value))} className="input-field" required /></Field>
-        <Field label="내장지방"><input type="number" value={form.visceralLevel} onChange={(e) => setVisit('visceralLevel', Number(e.target.value))} className="input-field" required /></Field>
-        <Field label="상태">
-          <select value={form.status} onChange={(e) => setVisit('status', e.target.value as VisitFormData['status'])} className="input-field">
-            <option value="완료">완료</option>
-            <option value="진행중">진행중</option>
-            <option value="미완료">미완료</option>
-          </select>
-        </Field>
-      </div>
-      <Field label="메모">
-        <textarea value={form.doctorNote} onChange={(e) => setVisit('doctorNote', e.target.value)} rows={2} className="input-field resize-none mt-3" />
-      </Field>
-      <div className="flex gap-6 text-sm mt-3">
-        <label className="flex items-center gap-2"><input type="checkbox" checked={form.photoUploaded} onChange={(e) => setVisit('photoUploaded', e.target.checked)} />사진 완료</label>
-        <label className="flex items-center gap-2"><input type="checkbox" checked={form.inbodyUploaded} onChange={(e) => setVisit('inbodyUploaded', e.target.checked)} />인바디 완료</label>
       </div>
     </div>
   );

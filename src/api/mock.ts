@@ -637,9 +637,10 @@ export function addVisitToday(patientId: string, data: VisitFormData): Visit {
 
 export interface NewPatientFormData {
   name: string;
-  sex: import('../types').Sex;
-  birth: string;
-  heightCm: number;
+  chartNo: string;
+  sex?: import('../types').Sex;
+  birth?: string;
+  heightCm?: number;
   phone?: string;
 }
 
@@ -708,14 +709,16 @@ export function createPatientWithTodayVisit(
 ): { patient: Patient; visit: Visit } {
   const id = `p-${Date.now()}`;
   const todayDot = TODAY.replace(/-/g, '.');
+  const chartNo = patientData.chartNo.trim() || getNextChartNo();
+  const birth = patientData.birth?.trim() ?? '';
   const patient: Patient = {
     id,
-    chartNo: getNextChartNo(),
+    chartNo,
     name: patientData.name.trim(),
-    sex: patientData.sex,
-    birth: patientData.birth.trim(),
-    ageAtToday: calcAgeFromBirth(patientData.birth),
-    heightCm: patientData.heightCm,
+    sex: patientData.sex ?? '여',
+    birth,
+    ageAtToday: birth ? calcAgeFromBirth(birth) : 0,
+    heightCm: patientData.heightCm ?? 0,
     startDate: todayDot,
     totalVisits: 0,
     lastVisitDate: TODAY,
