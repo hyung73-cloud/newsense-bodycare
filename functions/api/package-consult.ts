@@ -2,6 +2,7 @@ interface Env {
   CHANNEL_ACCESS_KEY: string;
   CHANNEL_ACCESS_SECRET: string;
   CHANNEL_BOT_NAME?: string;
+  CHANNEL_KAKAO_CHANNEL_URL?: string;
 }
 
 interface ConsultPayload {
@@ -19,6 +20,8 @@ interface ChannelUserChat {
 }
 
 const CHANNEL_API = 'https://api.channel.io/open/v5';
+const CONSULT_TAG = '방문패키지상담';
+const DEFAULT_KAKAO_CHANNEL_URL = 'https://pf.kakao.com/_vxnCPl/chat';
 
 async function channelRequest(
   env: Env,
@@ -65,7 +68,7 @@ function formatKrPhone(phone: string): string {
   return `+82${digits}`;
 }
 
-function formatCustomerMessage(p: ConsultPayload): string {
+function formatCustomerMessage(p: ConsultPayload, kakaoUrl: string): string {
   return [
     '방문 패키지 상담 신청합니다.',
     '',
@@ -75,6 +78,9 @@ function formatCustomerMessage(p: ConsultPayload): string {
     `방문희망시간: ${p.visitTime}`,
     `선택 패키지: ${p.packageSummary}`,
     `예상 합계: ${p.total.toLocaleString('ko-KR')}원`,
+    '',
+    '카카오톡으로 상담 이어가기:',
+    kakaoUrl,
   ].join('\n');
 }
 
@@ -211,6 +217,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     }
 
     const botName = await resolveBotName(context.env);
+    const kakaoUrl = context.env.CHANNEL_KAKAO_CHANNEL_URL?.trim() || DEFAULT_KAKAO_CHANNEL_URL;
 
     const userRes = await channelRequest(
       context.env,
@@ -220,14 +227,16 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
         profile: {
           name: payload.name.trim(),
           mobileNumber: formatKrPhone(payload.phone),
+          description: `BodyCare 방문상담 · ${payload.visitDate} ${payload.visitTime}`,
         },
-        tags: ['방문패키지상담', 'BodyCare'],
+        tags: [CONSULT_TAG, 'BodyCare'],
+        unsubscribeTexting: false,
       },
     );
 
     const userId = parseUserId(userRes);
     const userChatId = await ensureOpenUserChat(context.env, userId, botName);
-    const customerText = formatCustomerMessage(payload);
+    const customerText = formatCustomerMessage(payload, kakaoUrl);
     const description = `방문패키지상담 · ${payload.name.trim()} · ${payload.phone.trim()}`;
 
     await sendCustomerInquiry(context.env, userChatId, botName, customerText, description);
