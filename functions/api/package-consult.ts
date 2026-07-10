@@ -2,6 +2,7 @@ interface Env {
   CHANNEL_ACCESS_KEY: string;
   CHANNEL_ACCESS_SECRET: string;
   CHANNEL_BOT_NAME?: string;
+  CHANNEL_NOTIFY_GROUP_NAME?: string;
 }
 
 interface ConsultPayload {
@@ -78,11 +79,26 @@ function formatMessage(p: ConsultPayload): string {
   ].join('\n');
 }
 
-function buildMessageBody(text: string) {
-  return {
+function formatStaffMessage(p: ConsultPayload): string {
+  return [
+    '📋 방문 패키지 상담 신청 (BodyCare)',
+    '',
+    `👤 ${p.name.trim()} / ${p.phone.trim()}`,
+    `📅 ${p.visitDate} ${p.visitTime}`,
+    `📦 ${p.packageSummary}`,
+    `💰 ${p.total.toLocaleString('ko-KR')}원`,
+    '',
+    '※ 고객 대화 탭에서 연락처로 검색해 상담방을 확인하세요.',
+  ].join('\n');
+}
+
+function buildMessageBody(text: string, personType?: 'user' | 'bot') {
+  const body: Record<string, unknown> = {
     blocks: [{ type: 'text', value: text }],
     plainText: text,
   };
+  if (personType) body.personType = personType;
+  return body;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -112,50 +128,63 @@ async function listBotNames(env: Env): Promise<string[]> {
   }
 }
 
-async function getOrCreateUserChat(env: Env, userId: string): Promise<string> {
-  const listRes = await channelRequest(env, `/users/${userId}/user-chats?limit=25&sortOrder=desc`, 'GET');
-  const chats = parseUserChats(listRes);
+async function listGroupNames(env: Env): Promise<string[]> {
+  try {
+    const res = await channelRequest(env, '/groups?limit=50', 'GET');
+    const groups = (res.groups as Array<{ name?: string }> | undefined) ?? [];
+    return groups.map((g) => g.name).filter((n): n is string => Boolean(n));
+  } catch {
+    return [];
+  }
+}
 
-  const openChat = chats.find((c) => c.id && (c.state === 'opened' || c.state === 'snoozed'));
-  if (openChat?.id) return openChat.id;
+function pickNotifyGroup(groups: string[], preferred?: string): string | null {
+  if (preferred) {
+    const exact = groups.find((g) => g === preferred);
+    if (exact) return exact;
+  }
+  const keyword = groups.find((g) => g.includes('상담') || g.includes('뉴센스') || g.includes('BodyCare'));
+  if (keyword) return keyword;
+  return groups[0] ?? null;
+}
 
+async function createConsultUserChat(env: Env, userId: string): Promise<string> {
   try {
     const chatRes = await channelRequest(env, `/users/${userId}/user-chats`, 'POST');
     const created = chatRes.userChat as ChannelUserChat | undefined;
     if (created?.id) return created.id;
   } catch {
-    const retryRes = await channelRequest(env, `/users/${userId}/user-chats?limit=25&sortOrder=desc`, 'GET');
-    const retryChats = parseUserChats(retryRes);
-    if (retryChats[0]?.id) return retryChats[0].id;
+    // 이미 열린 상담방이 있을 수 있음
   }
+
+  const listRes = await channelRequest(env, `/users/${userId}/user-chats?limit=25&sortOrder=desc`, 'GET');
+  const chats = parseUserChats(listRes);
+  const openChat = chats.find((c) => c.id && (c.state === 'opened' || c.state === 'snoozed'));
+  if (openChat?.id) return openChat.id;
+  if (chats[0]?.id) return chats[0].id;
 
   throw new Error('UserChat ID not returned from Channel Talk');
 }
 
-async function sendChatMessage(env: Env, userChatId: string, text: string): Promise<void> {
-  const body = buildMessageBody(text);
-  const discovered = await listBotNames(env);
-  const botCandidates = [
-    ...discovered,
-    env.CHANNEL_BOT_NAME?.trim(),
-    'Channel',
-    '채널톡',
-    'channelBot',
-  ].filter((v, i, arr): v is string => Boolean(v) && arr.indexOf(v) === i);
-
+async function postMessage(
+  env: Env,
+  path: string,
+  body: Record<string, unknown>,
+  botNames: string[],
+): Promise<void> {
   let lastError: Error | null = null;
 
   try {
-    await channelRequest(env, `/user-chats/${userChatId}/messages`, 'POST', body);
+    await channelRequest(env, path, 'POST', body);
     return;
   } catch (err) {
     lastError = err instanceof Error ? err : new Error(String(err));
   }
 
-  for (const botName of botCandidates) {
+  for (const botName of botNames) {
     try {
-      const path = `/user-chats/${userChatId}/messages?botName=${encodeURIComponent(botName)}`;
-      await channelRequest(env, path, 'POST', body);
+      const separator = path.includes('?') ? '&' : '?';
+      await channelRequest(env, `${path}${separator}botName=${encodeURIComponent(botName)}`, 'POST', body);
       return;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -163,6 +192,50 @@ async function sendChatMessage(env: Env, userChatId: string, text: string): Prom
   }
 
   if (lastError) throw lastError;
+}
+
+async function sendUserChatInquiry(env: Env, userChatId: string, text: string): Promise<void> {
+  const botNames = await listBotNames(env);
+  const candidates = [
+    ...botNames,
+    env.CHANNEL_BOT_NAME?.trim(),
+    '채널톡',
+    'Channel',
+    'channelBot',
+  ].filter((v, i, arr): v is string => Boolean(v) && arr.indexOf(v) === i);
+
+  // 고객 문의처럼 보이도록 user 타입 우선 시도
+  try {
+    await postMessage(env, `/user-chats/${userChatId}/messages`, buildMessageBody(text, 'user'), candidates);
+    return;
+  } catch {
+    // fallback
+  }
+
+  await postMessage(env, `/user-chats/${userChatId}/messages`, buildMessageBody(text, 'bot'), candidates);
+}
+
+async function sendGroupNotification(env: Env, text: string): Promise<boolean> {
+  const groups = await listGroupNames(env);
+  const groupName = pickNotifyGroup(groups, env.CHANNEL_NOTIFY_GROUP_NAME?.trim());
+  if (!groupName) return false;
+
+  const botNames = await listBotNames(env);
+  const candidates = [
+    ...botNames,
+    env.CHANNEL_BOT_NAME?.trim(),
+    '채널톡',
+    'Channel',
+    'channelBot',
+  ].filter((v, i, arr): v is string => Boolean(v) && arr.indexOf(v) === i);
+
+  await postMessage(
+    env,
+    `/groups/@${encodeURIComponent(groupName)}/messages`,
+    buildMessageBody(text, 'bot'),
+    candidates,
+  );
+  return true;
 }
 
 function mapChannelError(err: unknown): string {
@@ -174,6 +247,9 @@ function mapChannelError(err: unknown): string {
   }
   if (lower.includes('401') || lower.includes('403') || lower.includes('unauthorized')) {
     return '채널톡 API 키가 올바르지 않습니다. Access Key와 Secret을 다시 확인해주세요.';
+  }
+  if (lower.includes('group')) {
+    return '채널톡 팀 채팅으로 알림을 보내지 못했습니다. CHANNEL_NOTIFY_GROUP_NAME을 확인해주세요.';
   }
   if (lower.includes('userchat')) {
     return '채널톡 상담방을 만들지 못했습니다. 잠시 후 다시 시도해주세요.';
@@ -213,10 +289,32 @@ export const onRequestPost = async (context: { request: Request; env: Env }): Pr
     );
 
     const userId = parseUserId(userRes);
-    const userChatId = await getOrCreateUserChat(context.env, userId);
-    await sendChatMessage(context.env, userChatId, formatMessage(payload));
+    const userChatId = await createConsultUserChat(context.env, userId);
 
-    return jsonResponse({ ok: true });
+    const customerText = formatMessage(payload);
+    const staffText = formatStaffMessage(payload);
+
+    let userChatSent = false;
+    let groupSent = false;
+
+    try {
+      await sendUserChatInquiry(context.env, userChatId, customerText);
+      userChatSent = true;
+    } catch (err) {
+      console.error('[package-consult] userChat message failed', err);
+    }
+
+    try {
+      groupSent = await sendGroupNotification(context.env, staffText);
+    } catch (err) {
+      console.error('[package-consult] group notification failed', err);
+    }
+
+    if (!userChatSent && !groupSent) {
+      throw new Error('Both user chat and group notification failed');
+    }
+
+    return jsonResponse({ ok: true, userChatSent, groupSent });
   } catch (err) {
     console.error('[package-consult]', err);
     const message = err instanceof Error ? err.message : String(err);

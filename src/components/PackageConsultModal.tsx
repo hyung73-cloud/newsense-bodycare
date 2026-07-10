@@ -49,7 +49,7 @@ export default function PackageConsultModal({
     setSubmitting(true);
     setError(null);
     try {
-      await submitPackageConsult({
+      const result = await submitPackageConsult({
         name: name.trim(),
         phone: phone.trim(),
         visitDate,
@@ -57,7 +57,11 @@ export default function PackageConsultModal({
         packageSummary,
         total,
       });
-      showToast('방문 패키지 상담이 등록되었습니다.');
+      showToast(
+        result.groupSent
+          ? '방문 패키지 상담이 등록되었습니다. 채널톡 팀 채팅·고객대화를 확인하세요.'
+          : '상담이 등록되었습니다. 채널톡 고객대화에서 연락처로 검색해 확인하세요.',
+      );
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : '상담 등록에 실패했습니다.';

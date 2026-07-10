@@ -45,7 +45,8 @@ git push -u origin main
 |------|------|
 | `CHANNEL_ACCESS_KEY` | 채널톡 데스크 → 설정 → API Key management |
 | `CHANNEL_ACCESS_SECRET` | 위와 함께 발급 |
-| `CHANNEL_BOT_NAME` | (선택) 메시지 발신 봇 이름. 채널톡 데스크 → 설정 → 봇 에서 **정확한 봇 이름** 확인 (기본 시도: `Channel`, `채널톡`) |
+| `CHANNEL_BOT_NAME` | (선택) 메시지 발신 봇 이름. 채널톡 데스크 → 설정 → 봇 에서 **정확한 봇 이름** 확인 |
+| `CHANNEL_NOTIFY_GROUP_NAME` | (선택) 상담 알림을 받을 **팀 채팅(그룹) 이름**. 미설정 시 API로 그룹 목록을 조회해 자동 선택 |
 
 6. **Save and Deploy** 클릭
 
