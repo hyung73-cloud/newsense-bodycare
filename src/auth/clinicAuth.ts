@@ -59,12 +59,13 @@ export async function bootstrapClinicSession(): Promise<boolean> {
 /**
  * 클리닉 공용 계정으로 Supabase Auth 세션 발급.
  * PIN 검증은 기존 adminAuth에서 수행한 뒤 호출한다.
+ * Auth 비밀번호는 관리자 PIN과 분리 — VITE_CLINIC_AUTH_PASSWORD 또는 기본값 사용.
  */
-export async function signInClinic(pin: string): Promise<void> {
+export async function signInClinic(_pin: string): Promise<void> {
   if (!isClinicAuthEnabled() || !supabase) return;
 
   const password =
-    (import.meta.env.VITE_CLINIC_AUTH_PASSWORD as string | undefined)?.trim() || pin;
+    (import.meta.env.VITE_CLINIC_AUTH_PASSWORD as string | undefined)?.trim() || '327288';
 
   const signInPromise = supabase.auth.signInWithPassword({
     email: AUTH_EMAIL,
@@ -88,7 +89,7 @@ export async function signInClinic(pin: string): Promise<void> {
   if (error) {
     console.error('[auth] Supabase 로그인 실패', error.message);
     throw new Error(
-      '서버 인증에 실패했습니다. Supabase 사용자 비밀번호가 PIN과 같은지 확인해주세요.',
+      '서버 인증에 실패했습니다. Cloudflare/Supabase의 VITE_CLINIC_AUTH_PASSWORD가 클리닉 Auth 비밀번호와 일치하는지 확인해주세요.',
     );
   }
 }

@@ -225,20 +225,24 @@ export default function PackageSelectPage() {
     setPatientModalOpen(true);
   };
 
-  const confirmPatient = () => {
+  const confirmPatient = async () => {
     if (!patientName.trim() || !chartNo.trim() || !level) return;
     const itemLabels = tickets.map((t) => t.label).join(', ');
-    registerPackageToday({
-      name: patientName.trim(),
-      chartNo: chartNo.trim(),
-      packageName: `${level.name} · ${level.subtitle}`,
-      packageDetail: itemLabels,
-      packagePrice: total,
-      packageTickets: tickets.map(({ label, sub, price }) => ({ label, sub, price })),
-    });
-    setPatientModalOpen(false);
-    setIssued(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    try {
+      await registerPackageToday({
+        name: patientName.trim(),
+        chartNo: chartNo.trim(),
+        packageName: `${level.name} · ${level.subtitle}`,
+        packageDetail: itemLabels,
+        packagePrice: total,
+        packageTickets: tickets.map(({ label, sub, price }) => ({ label, sub, price })),
+      });
+      setPatientModalOpen(false);
+      setIssued(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : '서버 저장에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   const resetAll = () => {

@@ -87,7 +87,7 @@ export default function TodayInputModal({ open, onClose, onSuccess }: TodayInput
     onClose();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === 'new') {
       if (!patientForm.name.trim()) {
@@ -102,10 +102,14 @@ export default function TodayInputModal({ open, onClose, onSuccess }: TodayInput
         setError('이미 사용 중인 차트번호입니다.');
         return;
       }
-      const { patient } = createPatientWithTodayVisit(patientForm, visitForm);
-      clearTodayInputDraft();
-      onSuccess(patient.id);
-      onClose();
+      try {
+        const { patient } = await createPatientWithTodayVisit(patientForm, visitForm);
+        clearTodayInputDraft();
+        onSuccess(patient.id);
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '서버 저장에 실패했습니다.');
+      }
       return;
     }
 
@@ -113,10 +117,14 @@ export default function TodayInputModal({ open, onClose, onSuccess }: TodayInput
       setError('재진 환자를 선택해주세요.');
       return;
     }
-    registerReturningPatientToday(selectedPatientId, visitForm);
-    clearTodayInputDraft();
-    onSuccess(selectedPatientId);
-    onClose();
+    try {
+      await registerReturningPatientToday(selectedPatientId, visitForm);
+      clearTodayInputDraft();
+      onSuccess(selectedPatientId);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '서버 저장에 실패했습니다.');
+    }
   };
 
   return (

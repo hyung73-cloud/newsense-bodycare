@@ -17,6 +17,9 @@ let state: SyncState = {
 
 const listeners = new Set<() => void>();
 
+/** 동시 저장이 서로 덮어쓰지 않도록 직렬 큐 */
+let chain: Promise<void> = Promise.resolve();
+
 function notify(): void {
   listeners.forEach((fn) => fn());
 }
@@ -38,25 +41,34 @@ function formatErr(err: unknown): string {
   return String(err);
 }
 
-/** 서버 저장 작업 실행. 실패 시 error 상태로 전환하고 예외를 다시 던진다. */
+/** 서버 저장 작업 실행. 실패 시 error 상태로 전환하고 예외를 다시 던진다. 요청은 순차 처리. */
 export async function runServerCommit(label: string, fn: () => Promise<void>): Promise<void> {
-  state = { ...state, status: 'syncing', label, error: null };
-  notify();
-  try {
-    await fn();
-    state = {
-      status: 'synced',
-      label,
-      error: null,
-      syncedAt: new Date().toISOString(),
-    };
+  const run = async () => {
+    state = { ...state, status: 'syncing', label, error: null };
     notify();
-  } catch (err) {
-    const msg = formatErr(err);
-    state = { status: 'error', label, error: msg, syncedAt: state.syncedAt };
-    notify();
-    throw err;
-  }
+    try {
+      await fn();
+      state = {
+        status: 'synced',
+        label,
+        error: null,
+        syncedAt: new Date().toISOString(),
+      };
+      notify();
+    } catch (err) {
+      const msg = formatErr(err);
+      state = { status: 'error', label, error: msg, syncedAt: state.syncedAt };
+      notify();
+      throw err;
+    }
+  };
+
+  const next = chain.then(run, run);
+  chain = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
 }
 
 /** 로컬만 갱신(서버 미사용) 시 synced 표시. */

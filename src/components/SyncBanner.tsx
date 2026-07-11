@@ -1,15 +1,29 @@
 import { useEffect, useState } from 'react';
 import { Cloud, CloudOff, Loader2, AlertCircle } from 'lucide-react';
 import { getSyncState, subscribeSync } from '../api/syncEngine';
-import { isOfflineMode } from '../api/mock';
+import { isOfflineMode, hasPendingServerSync } from '../api/mock';
 
 export default function SyncBanner() {
   const [sync, setSync] = useState(getSyncState);
   const offline = isOfflineMode();
+  const pending = hasPendingServerSync();
 
   useEffect(() => subscribeSync(() => setSync(getSyncState())), []);
 
-  if (offline) return null;
+  if (sync.status === 'idle' && !offline && !pending) return null;
+
+  if (offline || (pending && sync.status !== 'syncing' && sync.status !== 'error')) {
+    return (
+      <div className="border-b px-4 py-1.5 flex items-center gap-2 text-xs font-medium bg-amber-50 border-amber-200 text-amber-900">
+        <CloudOff className="w-3.5 h-3.5" />
+        <span className="truncate">
+          {offline
+            ? '오프라인 — 서버와 연결되지 않았습니다. 저장이 실패할 수 있습니다.'
+            : '서버 미동기화 항목이 있습니다. 다시 저장해주세요.'}
+        </span>
+      </div>
+    );
+  }
 
   if (sync.status === 'idle') return null;
 

@@ -51,9 +51,13 @@ export function getAdminAccounts(): AdminAccount[] {
 }
 
 /** 저장: 즉시 로컬 반영 후 서버(Supabase)에 영구 저장. 모든 기기가 공유. */
-export function saveAdminAccounts(accounts: AdminAccount[]): void {
+export async function saveAdminAccounts(accounts: AdminAccount[]): Promise<void> {
   applyLocal(accounts);
-  if (isSupabaseEnabled) void persistAdmins(accounts);
+  if (!isSupabaseEnabled) return;
+  const ok = await persistAdmins(accounts);
+  if (!ok) {
+    throw new Error('관리자 정보를 서버에 저장하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.');
+  }
 }
 
 /**

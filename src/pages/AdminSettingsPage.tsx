@@ -46,7 +46,7 @@ export default function AdminSettingsPage() {
     setError('');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmed = accounts.map((a) => ({ ...a, name: a.name.trim() }));
     const validationError = validateAdminAccounts(trimmed);
     if (validationError) {
@@ -57,7 +57,13 @@ export default function AdminSettingsPage() {
 
     const currentStaff = getStaff().name;
     const oldAccount = getAdminAccounts().find((a) => a.name === currentStaff);
-    saveAdminAccounts(trimmed);
+    try {
+      await saveAdminAccounts(trimmed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '서버 저장에 실패했습니다.');
+      setMessage('');
+      return;
+    }
 
     if (oldAccount) {
       const renamed = trimmed.find((a) => a.id === oldAccount.id);
@@ -69,7 +75,7 @@ export default function AdminSettingsPage() {
 
     setAccounts(trimmed.map((a) => ({ ...a })));
     setError('');
-    setMessage('관리자 정보가 저장되었습니다.');
+    setMessage('관리자 정보가 서버에 저장되었습니다.');
   };
 
   return (

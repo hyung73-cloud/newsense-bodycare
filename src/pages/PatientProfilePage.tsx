@@ -163,23 +163,34 @@ export default function PatientProfilePage() {
     setModalOpen(true);
   };
 
-  const handleSave = (data: VisitFormData) => {
+  const handleSave = async (data: VisitFormData) => {
     if (!id) return;
-    if (modalMode === 'add') {
-      addVisitToday(id, data);
-      setActiveTab('records');
-      showToast('오늘 기록이 추가되었습니다.');
-    } else if (editingVisit) {
-      updateVisit(editingVisit.id, data);
-      showToast('기록이 수정되었습니다.');
+    try {
+      if (modalMode === 'add') {
+        await addVisitToday(id, data);
+        setActiveTab('records');
+        showToast('오늘 기록이 서버에 저장되었습니다.');
+      } else if (editingVisit) {
+        await updateVisit(editingVisit.id, data);
+        showToast('기록이 서버에 저장되었습니다.');
+      }
+      bump();
+    } catch (err) {
+      bump();
+      showToast(err instanceof Error ? err.message : '서버 저장에 실패했습니다. 다시 시도해주세요.');
     }
-    bump();
   };
 
-  const handleDelete = (visit: Visit) => {
+  const handleDelete = async (visit: Visit) => {
     if (!window.confirm(`${visit.date.replace(/-/g, '.')} 기록을 삭제(숨김)하시겠습니까?`)) return;
-    hideVisit(visit.id);
-    bump();
+    try {
+      await hideVisit(visit.id);
+      bump();
+      showToast('기록이 서버에서 숨김 처리되었습니다.');
+    } catch (err) {
+      bump();
+      showToast(err instanceof Error ? err.message : '삭제 저장에 실패했습니다.');
+    }
   };
 
   const handleDeleteLatest = () => {
@@ -193,7 +204,8 @@ export default function PatientProfilePage() {
   ) => {
     if (!id) return;
     try {
-      const visit = slot === 'prev' ? ensurePrevVisitForPhoto(id) : ensureTodayVisitForPhoto(id);
+      const visit =
+        slot === 'prev' ? await ensurePrevVisitForPhoto(id) : await ensureTodayVisitForPhoto(id);
       await setVisitPhotoFile(visit.id, type === 'front' || type === 'side' ? type : 'front', file);
       bump();
       const slotLabel = slot === 'prev' ? '그전' : '오늘';
@@ -231,10 +243,10 @@ export default function PatientProfilePage() {
       throw new Error('오늘 방문 기록이 없어 업로드할 수 없습니다.');
     }
     if (applyInbodyOcr && inbodyParsed) {
-      applyInbodyOcrData(id, latestVisit.id, inbodyParsed);
+      await applyInbodyOcrData(id, latestVisit.id, inbodyParsed);
     }
     if (applyBodyShapeOcr && bodyShapeParsed) {
-      applyBodyShapeOcrData(latestVisit.id, bodyShapeParsed);
+      await applyBodyShapeOcrData(latestVisit.id, bodyShapeParsed);
     }
     if (inbodyFile) {
       await setInbodySheetFile(latestVisit.id, inbodyFile);

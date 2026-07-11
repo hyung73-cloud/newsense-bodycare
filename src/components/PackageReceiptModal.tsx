@@ -75,10 +75,12 @@ export default function PackageReceiptModal({
 
     setSaving(true);
     try {
-      updateVisitPackage(visit.id, { packageName: name, packageTickets: validTickets });
+      await updateVisitPackage(visit.id, { packageName: name, packageTickets: validTickets });
       setEditing(false);
       onSaved?.();
       onClose();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : '서버 저장에 실패했습니다.');
     } finally {
       setSaving(false);
     }

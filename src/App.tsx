@@ -37,18 +37,11 @@ export default function App() {
       if (!cancelled) setLoadingPhase('사진·인바디 불러오는 중…');
     }, 3000);
 
-    const hardCap = setTimeout(() => {
-      if (!cancelled) {
-        syncState();
-        setReady(true);
-      }
-    }, 15000);
-
+    // 불완전 데이터로 UI를 열지 않음 — init 완료까지 대기
     runInit()
       .catch((err) => console.error('[init] 초기화 실패', err))
       .finally(() => {
         if (!cancelled) {
-          clearTimeout(hardCap);
           clearTimeout(phaseTimer);
           syncState();
           setReady(true);
@@ -56,7 +49,6 @@ export default function App() {
       });
     return () => {
       cancelled = true;
-      clearTimeout(hardCap);
       clearTimeout(phaseTimer);
     };
   }, []);

@@ -35,19 +35,55 @@ import { isPersistableMediaUrl, isSampleOrBlobUrl, pickBestImage } from '../lib/
 export { getSyncState, subscribeSync } from './syncEngine';
 export type { SyncState, SyncStatus } from './syncEngine';
 
-/** 변경 내용을 서버에 저장하고 로컬 캐시도 갱신한다. */
+/** 초기 데이터 로드 완료 여부 — 완료 전 쓰기 차단 */
+let dataInitComplete = false;
+/** 서버 저장 실패 후 로컬만 남은 상태 */
+let pendingServerSync = false;
+
+export function isDataInitComplete(): boolean {
+  return dataInitComplete || !isSupabaseEnabled;
+}
+
+export function hasPendingServerSync(): boolean {
+  return pendingServerSync;
+}
+
+function markDataInitComplete(): void {
+  dataInitComplete = true;
+}
+
+function newEntityId(prefix: string): string {
+  const rand =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 10)
+      : Math.random().toString(36).slice(2, 12);
+  return `${prefix}-${Date.now()}-${rand}`;
+}
+
+/** 변경 내용을 서버에 저장하고, 성공 시에만 로컬 캐시를 확정한다. */
 async function commitToServer(label: string, fn: () => Promise<void>): Promise<void> {
   lastMutationAt = Date.now();
   allowCacheWrite = true;
+
   if (!isSupabaseEnabled) {
     saveDataCache();
     markLocalSynced(label);
+    pendingServerSync = false;
     return;
   }
+
+  if (!dataInitComplete && !offlineMode) {
+    throw new Error('데이터 로딩이 끝나기 전에는 저장할 수 없습니다. 잠시 후 다시 시도해주세요.');
+  }
+
+  await waitForAuthSession(8000);
+
   try {
     await runServerCommit(label, fn);
+    pendingServerSync = false;
     saveDataCache();
   } catch (err) {
+    pendingServerSync = true;
     saveDataCache();
     throw err;
   }
@@ -283,8 +319,8 @@ function visitMetricsFrom(patientId: string) {
   };
 }
 
-/** 사진 업로드용 — 오늘 방문이 없으면 생성 */
-export function ensureTodayVisitForPhoto(patientId: string): Visit {
+/** 사진 업로드용 — 오늘 방문이 없으면 생성 (서버 저장 완료까지 대기) */
+export async function ensureTodayVisitForPhoto(patientId: string): Promise<Visit> {
   const existing = visits.find((v) => v.patientId === patientId && v.date === TODAY && !v.hidden);
   if (existing) return existing;
 
@@ -295,7 +331,7 @@ export function ensureTodayVisitForPhoto(patientId: string): Visit {
 }
 
 /** 그전 사진용 — 오늘이 아닌 최근 방문, 없으면 어제 방문 생성 */
-export function ensurePrevVisitForPhoto(patientId: string): Visit {
+export async function ensurePrevVisitForPhoto(patientId: string): Promise<Visit> {
   const nonToday = getVisitsByPatientId(patientId).filter((v) => v.date !== TODAY);
   if (nonToday.length > 0) return nonToday[nonToday.length - 1];
 
@@ -306,11 +342,11 @@ export function ensurePrevVisitForPhoto(patientId: string): Visit {
   });
 }
 
-export function addVisitOnDate(patientId: string, date: string, data: VisitFormData): Visit {
+export async function addVisitOnDate(patientId: string, date: string, data: VisitFormData): Promise<Visit> {
   const existing = visits.find((v) => v.patientId === patientId && v.date === date && !v.hidden);
   if (existing) return existing;
 
-  const id = `v-${Date.now()}`;
+  const id = newEntityId('v');
   const visit: Visit = {
     id,
     patientId,
@@ -325,10 +361,10 @@ export function addVisitOnDate(patientId: string, date: string, data: VisitFormD
   recalcTodayStats();
 
   const patient = patients.find((p) => p.id === patientId);
-  void commitToServer('방문 추가', async () => {
+  await commitToServer('방문 추가', async () => {
     if (patient) await persistPatient(patient);
     await persistVisit(visit);
-  }).catch((err) => console.error('[sync] 방문 추가 저장 실패', err));
+  });
 
   return visit;
 }
@@ -412,18 +448,17 @@ export function getLatestBodyShape(patientId: string): BodyShapeRecord | undefin
   return records[records.length - 1];
 }
 
-export function hideVisit(visitId: string): void {
+export async function hideVisit(visitId: string): Promise<void> {
   const visit = visits.find((v) => v.id === visitId);
-  if (visit) {
-    visit.hidden = true;
-    syncPatientStats(visit.patientId);
-    recalcTodayStats();
-    void commitToServer('방문 숨김', async () => {
-      await persistVisit(visit);
-      const patient = patients.find((p) => p.id === visit.patientId);
-      if (patient) await persistPatient(patient);
-    }).catch((err) => console.error('[sync] 방문 숨김 저장 실패', err));
-  }
+  if (!visit) return;
+  visit.hidden = true;
+  syncPatientStats(visit.patientId);
+  recalcTodayStats();
+  await commitToServer('방문 숨김', async () => {
+    await persistVisit(visit);
+    const patient = patients.find((p) => p.id === visit.patientId);
+    if (patient) await persistPatient(patient);
+  });
 }
 
 export interface VisitFormData {
@@ -455,8 +490,8 @@ function nowFormatted(): string {
   return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function addVisitToday(patientId: string, data: VisitFormData): Visit {
-  const id = `v-${Date.now()}`;
+export async function addVisitToday(patientId: string, data: VisitFormData): Promise<Visit> {
+  const id = newEntityId('v');
   const visit: Visit = {
     id,
     patientId,
@@ -472,11 +507,10 @@ export function addVisitToday(patientId: string, data: VisitFormData): Visit {
   recalcTodayStats();
 
   const patient = patients.find((p) => p.id === patientId);
-  void commitToServer('방문 추가', async () => {
+  await commitToServer('방문 추가', async () => {
     if (patient) await persistPatient(patient);
     await persistVisit(visit);
-    // 사진·인바디는 실제 업로드 시에만 서버 저장 (placeholder URL 저장 방지)
-  }).catch((err) => console.error('[sync] 방문 추가 저장 실패', err));
+  });
 
   return visit;
 }
@@ -549,11 +583,11 @@ function prependRecentMemo(patient: Patient, summary: string): void {
   if (recentMemos.length > 10) recentMemos.pop();
 }
 
-export function createPatientWithTodayVisit(
+export async function createPatientWithTodayVisit(
   patientData: NewPatientFormData,
   visitData: VisitFormData,
-): { patient: Patient; visit: Visit } {
-  const id = `p-${Date.now()}`;
+): Promise<{ patient: Patient; visit: Visit }> {
+  const id = newEntityId('p');
   const todayDot = TODAY.replace(/-/g, '.');
   const chartNo = patientData.chartNo.trim() || getNextChartNo();
   const birth = patientData.birth?.trim() ?? '';
@@ -571,7 +605,7 @@ export function createPatientWithTodayVisit(
     phone: patientData.phone?.trim() || undefined,
   };
   patients.push(patient);
-  const visit = addVisitToday(id, {
+  const visit = await addVisitToday(id, {
     ...visitData,
     doctorNote: visitData.doctorNote || '신규 환자 등록 및 초진 기록',
   });
@@ -579,15 +613,15 @@ export function createPatientWithTodayVisit(
   return { patient, visit };
 }
 
-export function registerReturningPatientToday(
+export async function registerReturningPatientToday(
   patientId: string,
   visitData: VisitFormData,
-): Visit {
+): Promise<Visit> {
   if (hasVisitToday(patientId)) {
     const existing = visits.find((v) => v.patientId === patientId && v.date === TODAY && !v.hidden)!;
-    return updateVisit(existing.id, visitData)!;
+    return (await updateVisit(existing.id, visitData))!;
   }
-  const visit = addVisitToday(patientId, visitData);
+  const visit = await addVisitToday(patientId, visitData);
   const patient = getPatientById(patientId);
   if (patient) prependRecentMemo(patient, visit.doctorNote.slice(0, 40));
   return visit;
@@ -607,7 +641,7 @@ export interface PackageRegistrationInput {
  * 차트번호(없으면 이름)로 기존 환자를 찾고, 없으면 최소 정보로 신규 생성한 뒤,
  * 오늘 방문 기록에 결제한 패키지명을 기록한다. (오늘 방문 리스트에 자동 노출)
  */
-export function registerPackageToday(input: PackageRegistrationInput): Visit {
+export async function registerPackageToday(input: PackageRegistrationInput): Promise<Visit> {
   const name = input.name.trim();
   const chart = input.chartNo.trim();
 
@@ -617,7 +651,7 @@ export function registerPackageToday(input: PackageRegistrationInput): Visit {
 
   if (!patient) {
     patient = {
-      id: `p-${Date.now()}`,
+      id: newEntityId('p'),
       chartNo: chart || getNextChartNo(),
       name: name || '미입력',
       sex: '여',
@@ -640,7 +674,7 @@ export function registerPackageToday(input: PackageRegistrationInput): Visit {
     if (!visit.doctorNote) visit.doctorNote = `패키지 등록: ${input.packageName}`;
   } else {
     visit = {
-      id: `v-${Date.now()}`,
+      id: newEntityId('v'),
       patientId: patient.id,
       date: TODAY,
       weightKg: 0,
@@ -668,10 +702,10 @@ export function registerPackageToday(input: PackageRegistrationInput): Visit {
 
   const targetPatient = patient;
   const targetVisit = visit;
-  void commitToServer('패키지 등록', async () => {
+  await commitToServer('패키지 등록', async () => {
     await persistPatient(targetPatient);
     await persistVisit(targetVisit);
-  }).catch((err) => console.error('[sync] 패키지 등록 저장 실패', err));
+  });
 
   return visit;
 }
@@ -682,7 +716,10 @@ export interface PackageUpdateInput {
 }
 
 /** 오늘 방문 리스트에서 패키지 영수증 수정 */
-export function updateVisitPackage(visitId: string, input: PackageUpdateInput): Visit | undefined {
+export async function updateVisitPackage(
+  visitId: string,
+  input: PackageUpdateInput,
+): Promise<Visit | undefined> {
   const visit = visits.find((v) => v.id === visitId);
   if (!visit) return undefined;
 
@@ -698,14 +735,14 @@ export function updateVisitPackage(visitId: string, input: PackageUpdateInput): 
   visit.packagePrice = tickets.reduce((sum, t) => sum + t.price, 0);
   visit.enteredAt = nowFormatted();
 
-  void commitToServer('패키지 수정', async () => {
+  await commitToServer('패키지 수정', async () => {
     await persistVisit(visit);
-  }).catch((err) => console.error('[sync] 패키지 수정 저장 실패', err));
+  });
 
   return visit;
 }
 
-export function markLatestVisitInbodyUploaded(patientId: string): boolean {
+export async function markLatestVisitInbodyUploaded(patientId: string): Promise<boolean> {
   const visit = getLatestVisit(patientId);
   if (!visit || visit.date !== TODAY) return false;
 
@@ -713,11 +750,11 @@ export function markLatestVisitInbodyUploaded(patientId: string): boolean {
   if (visit.status === '미완료') visit.status = '진행중';
 
   recalcTodayStats();
-  void commitToServer('인바디 완료', async () => {
+  await commitToServer('인바디 완료', async () => {
     await persistVisit(visit);
     const inbody = inbodyRecords.find((r) => r.visitId === visit.id);
     if (inbody?.sheetImageUrl) await persistInbody(inbody);
-  }).catch((err) => console.error('[sync] 인바디 완료 저장 실패', err));
+  });
   return true;
 }
 
@@ -846,11 +883,11 @@ export function isInbodyOcrEnabledForPatient(_patient: Patient): boolean {
 }
 
 /** OCR 파싱 결과를 환자·방문·인바디 수치에 반영 */
-export function applyInbodyOcrData(
+export async function applyInbodyOcrData(
   patientId: string,
   visitId: string,
   parsed: import('../lib/inbodyOcrTypes').InbodyParsedData,
-): void {
+): Promise<void> {
   const patient = patients.find((p) => p.id === patientId);
   const visit = visits.find((v) => v.id === visitId);
   if (!patient || !visit) return;
@@ -922,18 +959,18 @@ export function applyInbodyOcrData(
   const targetPatient = patient;
   const targetVisit = visit;
   const targetInbody = inbody;
-  void commitToServer('인바디 OCR 자동입력', async () => {
+  await commitToServer('인바디 OCR 자동입력', async () => {
     await persistPatient(targetPatient);
     await persistVisit(targetVisit);
     await persistInbody(targetInbody);
-  }).catch((err) => console.error('[sync] 인바디 OCR 저장 실패', err));
+  });
 }
 
 /** 체형결과지 OCR — 복부 바깥둘레·안쪽둘레·지방두께 반영 */
-export function applyBodyShapeOcrData(
+export async function applyBodyShapeOcrData(
   visitId: string,
   parsed: import('../lib/bodyShapeParser').BodyShapeParsedData,
-): void {
+): Promise<void> {
   const visit = visits.find((v) => v.id === visitId);
   if (!visit) return;
 
@@ -962,10 +999,10 @@ export function applyBodyShapeOcrData(
 
   const targetVisit = visit;
   const targetRecord = record;
-  void commitToServer('체형결과지 OCR 자동입력', async () => {
+  await commitToServer('체형결과지 OCR 자동입력', async () => {
     await persistVisit(targetVisit);
     await persistBodyShape(targetRecord);
-  }).catch((err) => console.error('[sync] 체형결과지 OCR 저장 실패', err));
+  });
 }
 
 export async function setInbodySheetFile(visitId: string, file: File): Promise<string> {
@@ -1055,7 +1092,7 @@ export async function setBodyShapeSheetFile(visitId: string, file: File): Promis
   return target?.sheetImageUrl ?? url;
 }
 
-export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visit | undefined {
+export async function updateVisit(visitId: string, data: Partial<VisitFormData>): Promise<Visit | undefined> {
   const visit = visits.find((v) => v.id === visitId);
   if (!visit) return undefined;
 
@@ -1081,12 +1118,12 @@ export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visi
 
   const patient = patients.find((p) => p.id === visit.patientId);
 
-  void commitToServer('방문 수정', async () => {
+  await commitToServer('방문 수정', async () => {
     await persistVisit(visit);
     await Promise.all(imgs.map((img) => persistVisitImage(img)));
     if (inbody) await persistInbody(inbody);
     if (patient) await persistPatient(patient);
-  }).catch((err) => console.error('[sync] 방문 수정 저장 실패', err));
+  });
 
   return visit;
 }
@@ -1251,7 +1288,11 @@ function shouldApplyInitData(): boolean {
 }
 
 function mergeVisitImages(serverImages: VisitImage[]): void {
-  replaceArray(visitImages, dedupeVisitImages([...visitImages, ...serverImages]));
+  // 서버가 권위. 업로드 직전 blob만 로컬에 유지.
+  const localPending = visitImages.filter((img) => img.url.startsWith('blob:'));
+  const serverIds = new Set(serverImages.map((img) => img.id));
+  const keepLocal = localPending.filter((img) => !serverIds.has(img.id));
+  replaceArray(visitImages, dedupeVisitImages([...serverImages, ...keepLocal]));
 }
 
 function mergeInbodyRecords(serverRecords: InbodyRecord[]): void {
@@ -1393,6 +1434,7 @@ export function activateLocalCache(): boolean {
   offlineMode = true;
   dataLoadFailed = false;
   allowCacheWrite = true;
+  markDataInitComplete();
   return true;
 }
 
@@ -1410,28 +1452,32 @@ export async function retryInitData(): Promise<boolean> {
 
   const result = await loadAllFromSupabase(2);
   if (result.status === 'empty') {
-    if (!shouldApplyInitData()) return true;
-    replaceArray(patients, []);
-    replaceArray(visits, []);
-    replaceArray(visitImages, []);
-    replaceArray(inbodyRecords, []);
-    replaceArray(bodyShapeRecords, []);
-    recalcTodayStats();
-    allowCacheWrite = true;
-    saveDataCache();
+    if (shouldApplyInitData()) {
+      replaceArray(patients, []);
+      replaceArray(visits, []);
+      replaceArray(visitImages, []);
+      replaceArray(inbodyRecords, []);
+      replaceArray(bodyShapeRecords, []);
+      recalcTodayStats();
+      allowCacheWrite = true;
+      saveDataCache();
+    }
+    markDataInitComplete();
     return true;
   }
   if (result.status === 'loaded') {
-    if (!shouldApplyInitData()) return true;
-    replaceArray(patients, result.data.patients);
-    replaceArray(visits, result.data.visits);
-    mergeVisitImages(dedupeVisitImages(result.data.visitImages));
-    mergeInbodyRecords(result.data.inbodyRecords);
-    mergeBodyShapeRecords(result.data.bodyShapeRecords ?? []);
-    recalcTodayStats();
-    offlineMode = false;
-    allowCacheWrite = true;
-    saveDataCache();
+    if (shouldApplyInitData()) {
+      replaceArray(patients, result.data.patients);
+      replaceArray(visits, result.data.visits);
+      replaceArray(visitImages, dedupeVisitImages(result.data.visitImages));
+      replaceArray(inbodyRecords, result.data.inbodyRecords);
+      replaceArray(bodyShapeRecords, result.data.bodyShapeRecords ?? []);
+      recalcTodayStats();
+      offlineMode = false;
+      allowCacheWrite = true;
+      saveDataCache();
+    }
+    markDataInitComplete();
     return true;
   }
   if (loadDataCache()) {
@@ -1443,7 +1489,10 @@ export async function retryInitData(): Promise<boolean> {
 }
 
 async function doInit(): Promise<void> {
-  if (!isSupabaseEnabled) return;
+  if (!isSupabaseEnabled) {
+    markDataInitComplete();
+    return;
+  }
 
   clearLegacyDataCaches();
   initStartedAt = Date.now();
@@ -1452,30 +1501,34 @@ async function doInit(): Promise<void> {
   const result = await loadCriticalFromSupabase(10000);
 
   if (result.status === 'empty') {
-    if (!shouldApplyInitData()) return;
-    replaceArray(patients, []);
-    replaceArray(visits, []);
-    replaceArray(visitImages, []);
-    replaceArray(inbodyRecords, []);
-    replaceArray(bodyShapeRecords, []);
-    recalcTodayStats();
-    offlineMode = false;
-    allowCacheWrite = true;
-    saveDataCache();
+    if (shouldApplyInitData()) {
+      replaceArray(patients, []);
+      replaceArray(visits, []);
+      replaceArray(visitImages, []);
+      replaceArray(inbodyRecords, []);
+      replaceArray(bodyShapeRecords, []);
+      recalcTodayStats();
+      offlineMode = false;
+      allowCacheWrite = true;
+      saveDataCache();
+    }
+    markDataInitComplete();
     return;
   }
 
   if (result.status === 'loaded') {
-    if (!shouldApplyInitData()) return;
-    replaceArray(patients, result.data.patients);
-    replaceArray(visits, result.data.visits);
-    recalcTodayStats();
-    offlineMode = false;
-    allowCacheWrite = true;
+    if (shouldApplyInitData()) {
+      replaceArray(patients, result.data.patients);
+      replaceArray(visits, result.data.visits);
+      recalcTodayStats();
+      offlineMode = false;
+      allowCacheWrite = true;
 
-    const secondary = await loadSecondaryFromSupabase(12000, 2);
-    applySecondaryOrCache(secondary);
-    saveDataCache();
+      const secondary = await loadSecondaryFromSupabase(12000, 2);
+      applySecondaryOrCache(secondary);
+      saveDataCache();
+    }
+    markDataInitComplete();
     return;
   }
 
@@ -1484,6 +1537,7 @@ async function doInit(): Promise<void> {
     applyDataCache(cache);
     offlineMode = true;
     allowCacheWrite = true;
+    markDataInitComplete();
     console.warn('[init] 서버 연결 실패 → 로컬 캐시 사용', cache.savedAt);
     return;
   }
