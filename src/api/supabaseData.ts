@@ -1,6 +1,6 @@
 import { supabase, STORAGE_BUCKET, isSupabaseEnabled, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { resolveDisplayUrl, isPersistableMediaUrl, pickBestImage, isSampleOrBlobUrl } from '../lib/mediaUrl';
-import type { InbodyRecord, PackageTicketLine, Patient, Visit, VisitImage } from '../types';
+import type { BodyShapeRecord, InbodyRecord, PackageTicketLine, Patient, Visit, VisitImage } from '../types';
 
 /* ──────────────────────────────────────────────
  * DB row 타입 (snake_case) ↔ 앱 타입 (camelCase) 매핑
@@ -61,6 +61,16 @@ interface InbodyRow {
   bmr_kcal: number;
   abdominal_fat_ratio: number;
   smi: number;
+  sheet_image_url: string | null;
+  sheet_storage_path?: string | null;
+}
+
+interface BodyShapeRow {
+  visit_id: string;
+  outer_circumference_cm: number;
+  inner_circumference_cm: number;
+  fat_thickness_mm: number;
+  note_text: string | null;
   sheet_image_url: string | null;
   sheet_storage_path?: string | null;
 }
@@ -262,6 +272,39 @@ function inbodyToRow(rec: InbodyRecord, storagePath?: string) {
   };
 }
 
+function rowToBodyShape(r: BodyShapeRow): BodyShapeRecord {
+  const sheetImageUrl =
+    resolveDisplayUrl(r.sheet_image_url, r.sheet_storage_path ?? null, supabaseUrl) ?? '';
+  return {
+    visitId: r.visit_id,
+    outerCircumferenceCm: num(r.outer_circumference_cm),
+    innerCircumferenceCm: num(r.inner_circumference_cm),
+    fatThicknessMm: num(r.fat_thickness_mm),
+    noteText: r.note_text ?? '',
+    sheetImageUrl,
+  };
+}
+
+function bodyShapeToRow(rec: BodyShapeRecord, storagePath?: string) {
+  if (isSampleOrBlobUrl(rec.sheetImageUrl) && !storagePath) {
+    throw new Error('임시 체형결과지 이미지는 서버에 저장할 수 없습니다. 업로드를 다시 시도해주세요.');
+  }
+  const sheetUrl = isSampleOrBlobUrl(rec.sheetImageUrl)
+    ? storagePath
+      ? storagePublicUrl(storagePath)
+      : null
+    : rec.sheetImageUrl;
+  return {
+    visit_id: rec.visitId,
+    outer_circumference_cm: rec.outerCircumferenceCm,
+    inner_circumference_cm: rec.innerCircumferenceCm,
+    fat_thickness_mm: rec.fatThicknessMm,
+    note_text: rec.noteText || null,
+    sheet_image_url: sheetUrl,
+    ...(storagePath ? { sheet_storage_path: storagePath } : {}),
+  };
+}
+
 /* ──────────────────────────────────────────────
  * 로드 / 시드
  * ────────────────────────────────────────────── */
@@ -271,6 +314,7 @@ export interface LoadedData {
   visits: Visit[];
   visitImages: VisitImage[];
   inbodyRecords: InbodyRecord[];
+  bodyShapeRecords: BodyShapeRecord[];
 }
 
 /**
@@ -327,7 +371,11 @@ function sleep(ms: number): Promise<void> {
 }
 
 type CriticalData = { patients: Patient[]; visits: Visit[] };
-type SecondaryData = { visitImages: VisitImage[]; inbodyRecords: InbodyRecord[] };
+type SecondaryData = {
+  visitImages: VisitImage[];
+  inbodyRecords: InbodyRecord[];
+  bodyShapeRecords: BodyShapeRecord[];
+};
 
 /** REST 호출용 헤더. 로그인 세션이 있으면 JWT를 사용 (RLS authenticated 정책 대응). */
 async function getRestAuthHeaders(): Promise<Record<string, string>> {
@@ -410,22 +458,29 @@ export async function loadCriticalFromSupabase(timeoutMs = 8000): Promise<
   }
 }
 
-/** 2단계: 사진·인바디 로드 (supabase-js 우선, REST 폴백, 재시도 포함). */
+/** 2단계: 사진·인바디·체형결과지 로드 (supabase-js 우선, REST 폴백, 재시도 포함). */
 async function loadSecondaryOnce(): Promise<SecondaryData> {
   let visitImages: VisitImage[] = [];
   let inbodyRecords: InbodyRecord[] = [];
+  let bodyShapeRecords: BodyShapeRecord[] = [];
 
   if (supabase) {
-    const [imgRes, inbRes] = await Promise.all([
+    const [imgRes, inbRes, bodyRes] = await Promise.all([
       supabase.from('visit_images').select('*'),
       supabase.from('inbody_records').select('*'),
+      supabase.from('body_shape_records').select('*'),
     ]);
     if (!imgRes.error && !inbRes.error) {
       visitImages = dedupeVisitImages(
         (imgRes.data as VisitImageRow[]).map(rowToImage).filter((x): x is VisitImage => x !== null),
       );
       inbodyRecords = (inbRes.data as InbodyRow[]).map(rowToInbody);
-      return { visitImages, inbodyRecords };
+      if (!bodyRes.error && bodyRes.data) {
+        bodyShapeRecords = (bodyRes.data as BodyShapeRow[]).map(rowToBodyShape);
+      } else if (bodyRes.error) {
+        console.warn('[supabase] 체형결과지 테이블 미준비 또는 로드 실패', bodyRes.error.message);
+      }
+      return { visitImages, inbodyRecords, bodyShapeRecords };
     }
     console.warn('[supabase] client 사진/인바디 로드 실패 → REST 재시도', imgRes.error, inbRes.error);
   }
@@ -438,7 +493,13 @@ async function loadSecondaryOnce(): Promise<SecondaryData> {
     iRows.map(rowToImage).filter((x): x is VisitImage => x !== null),
   );
   inbodyRecords = bRows.map(rowToInbody);
-  return { visitImages, inbodyRecords };
+  try {
+    const bodyRows = await restGet<BodyShapeRow>('body_shape_records');
+    bodyShapeRecords = bodyRows.map(rowToBodyShape);
+  } catch (err) {
+    console.warn('[supabase] 체형결과지 REST 로드 실패(테이블 미생성 가능)', err);
+  }
+  return { visitImages, inbodyRecords, bodyShapeRecords };
 }
 
 export async function loadSecondaryFromSupabase(
@@ -480,6 +541,7 @@ export async function loadAllFromSupabase(maxRetries = 2): Promise<LoadResult> {
           visits: critical.data.visits,
           visitImages: secondary?.visitImages ?? [],
           inbodyRecords: secondary?.inbodyRecords ?? [],
+          bodyShapeRecords: secondary?.bodyShapeRecords ?? [],
         },
       };
     }
@@ -545,6 +607,12 @@ export async function deleteOtherVisitImages(
 export async function persistInbody(rec: InbodyRecord, storagePath?: string): Promise<void> {
   if (!isSupabaseEnabled || !supabase) return;
   const { error } = await supabase.from('inbody_records').upsert(inbodyToRow(rec, storagePath));
+  if (error) throw error;
+}
+
+export async function persistBodyShape(rec: BodyShapeRecord, storagePath?: string): Promise<void> {
+  if (!isSupabaseEnabled || !supabase) return;
+  const { error } = await supabase.from('body_shape_records').upsert(bodyShapeToRow(rec, storagePath));
   if (error) throw error;
 }
 

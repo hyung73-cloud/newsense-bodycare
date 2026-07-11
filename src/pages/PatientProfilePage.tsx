@@ -11,6 +11,7 @@ import ChangeChart from '../components/ChangeChart';
 import ResearchPanel from '../components/ResearchPanel';
 import VisitHistoryTable from '../components/VisitHistoryTable';
 import VisitFormModal from '../components/VisitFormModal';
+import AbdomenChart from '../components/AbdomenChart';
 import InbodyUploadModal, { type InbodyUploadPayload } from '../components/InbodyUploadModal';
 import { useToast } from '../context/ToastContext';
 import type { Visit, ImageType } from '../types';
@@ -25,6 +26,7 @@ import {
   getWeightChartData,
   getWaistChartData,
   getChangeChartData,
+  getAbdomenChartData,
   getDoctorMemos,
   hideVisit,
   addVisitToday,
@@ -32,7 +34,9 @@ import {
   hasVisitToday,
   setVisitPhotoFile,
   setInbodySheetFile,
+  setBodyShapeSheetFile,
   applyInbodyOcrData,
+  applyBodyShapeOcrData,
   isInbodyOcrEnabledForPatient,
   TODAY,
   type VisitFormData,
@@ -202,20 +206,35 @@ export default function PatientProfilePage() {
     }
   };
 
-  const handleInbodyUpload = async ({ file, parsed, applyOcr }: InbodyUploadPayload) => {
+  const handleInbodyUpload = async ({
+    inbodyFile,
+    inbodyParsed,
+    applyInbodyOcr,
+    bodyShapeFile,
+    bodyShapeParsed,
+    applyBodyShapeOcr,
+  }: InbodyUploadPayload) => {
     if (!latestVisit || !id) {
       throw new Error('오늘 방문 기록이 없어 업로드할 수 없습니다.');
     }
-    if (applyOcr && parsed) {
-      applyInbodyOcrData(id, latestVisit.id, parsed);
+    if (applyInbodyOcr && inbodyParsed) {
+      applyInbodyOcrData(id, latestVisit.id, inbodyParsed);
     }
-    await setInbodySheetFile(latestVisit.id, file);
+    if (applyBodyShapeOcr && bodyShapeParsed) {
+      applyBodyShapeOcrData(latestVisit.id, bodyShapeParsed);
+    }
+    if (inbodyFile) {
+      await setInbodySheetFile(latestVisit.id, inbodyFile);
+    }
+    if (bodyShapeFile) {
+      await setBodyShapeSheetFile(latestVisit.id, bodyShapeFile);
+    }
     setInbodyModalOpen(false);
     bump();
-    if (applyOcr && parsed) {
-      showToast('인바디 기록지 저장 및 OCR 자동입력이 완료되었습니다.');
+    if ((applyInbodyOcr && inbodyParsed) || (applyBodyShapeOcr && bodyShapeParsed)) {
+      showToast('기록지 저장 및 OCR 자동입력이 완료되었습니다.');
     } else {
-      showToast('인바디 결과지가 서버에 저장되었습니다.');
+      showToast('기록지가 서버에 저장되었습니다.');
     }
   };
 
@@ -343,7 +362,7 @@ export default function PatientProfilePage() {
               <div className="grid grid-cols-3 gap-5 items-stretch">
                 <InbodySummary records={inbodyRecords} />
                 <ChangeChart data={getChangeChartData(patient.id)} />
-                <ResearchPanel items={researchItems} />
+                <AbdomenChart data={getAbdomenChartData(patient.id)} />
               </div>
               </div>
             ) : (
@@ -411,10 +430,13 @@ export default function PatientProfilePage() {
         )}
 
         {activeTab === 'inbody' && (
-          <div className="grid grid-cols-3 gap-5 items-stretch">
-            <InbodySummary records={inbodyRecords} />
-            <ChangeChart data={getChangeChartData(patient.id)} />
-            <ResearchPanel items={researchItems} />
+          <div className="space-y-5">
+            <div className="grid grid-cols-3 gap-5 items-stretch">
+              <InbodySummary records={inbodyRecords} />
+              <ChangeChart data={getChangeChartData(patient.id)} />
+              <ResearchPanel items={researchItems} />
+            </div>
+            <AbdomenChart data={getAbdomenChartData(patient.id)} />
           </div>
         )}
 

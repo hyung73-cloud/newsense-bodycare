@@ -88,7 +88,7 @@ export default function PatientHeader({
           className="btn-outline"
         >
           <Upload className="w-4 h-4" />
-          인바디 기록지 업로드
+          기록지 업로드
         </button>
       </div>
     </div>

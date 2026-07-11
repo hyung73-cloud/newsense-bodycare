@@ -67,6 +67,18 @@ create table if not exists inbody_records (
   sheet_storage_path text
 );
 
+-- 체형결과지 (방문당 1개) — 복부 바깥둘레·안쪽둘레·지방두께
+create table if not exists body_shape_records (
+  visit_id text primary key references visits(id) on delete cascade,
+  outer_circumference_cm numeric not null default 0,
+  inner_circumference_cm numeric not null default 0,
+  fat_thickness_mm numeric not null default 0,
+  note_text text default '',
+  sheet_image_url text,
+  sheet_storage_path text,
+  created_at timestamptz not null default now()
+);
+
 -- 관리자 계정 (PIN 로그인)
 create table if not exists admins (
   id text primary key,
@@ -83,6 +95,7 @@ alter table patients        enable row level security;
 alter table visits          enable row level security;
 alter table visit_images    enable row level security;
 alter table inbody_records  enable row level security;
+alter table body_shape_records enable row level security;
 alter table admins          enable row level security;
 
 do $$
@@ -102,6 +115,10 @@ begin
   -- inbody_records
   if not exists (select 1 from pg_policies where tablename='inbody_records' and policyname='allow_all_inbody') then
     create policy allow_all_inbody on inbody_records for all using (true) with check (true);
+  end if;
+  -- body_shape_records
+  if not exists (select 1 from pg_policies where tablename='body_shape_records' and policyname='allow_all_body_shape') then
+    create policy allow_all_body_shape on body_shape_records for all using (true) with check (true);
   end if;
   -- admins
   if not exists (select 1 from pg_policies where tablename='admins' and policyname='allow_all_admins') then

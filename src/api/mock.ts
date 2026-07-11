@@ -2,6 +2,7 @@ import type {
   CalendarDay,
   ImageType,
   InbodyRecord,
+  BodyShapeRecord,
   PackageTicketLine,
   Patient,
   ProcedureTag,
@@ -24,6 +25,7 @@ import {
   persistVisit,
   persistVisitImage,
   persistInbody,
+  persistBodyShape,
   uploadFile,
   dedupeVisitImages,
   deleteOtherVisitImages,
@@ -83,6 +85,8 @@ export const visits: Visit[] = [];
 export const visitImages: VisitImage[] = [];
 
 export const inbodyRecords: InbodyRecord[] = [];
+
+export const bodyShapeRecords: BodyShapeRecord[] = [];
 
 export const procedureTags: ProcedureTag[] = [
   { key: 'arginine', label: '아르기닌 수액요법', count: 0, patientIds: [] },
@@ -254,6 +258,24 @@ export function getInbodyRecordsByPatient(patientId: string): (InbodyRecord & { 
 
 export function getLatestInbody(patientId: string): InbodyRecord | undefined {
   const records = getInbodyRecordsByPatient(patientId);
+  if (records.length === 0) return undefined;
+  return records[records.length - 1];
+}
+
+export function getBodyShapeRecordsByPatient(
+  patientId: string,
+): (BodyShapeRecord & { date: string })[] {
+  return getVisitsByPatientId(patientId)
+    .map((v) => {
+      const record = bodyShapeRecords.find((r) => r.visitId === v.id);
+      if (!record) return null;
+      return { ...record, date: v.date };
+    })
+    .filter(Boolean) as (BodyShapeRecord & { date: string })[];
+}
+
+export function getLatestBodyShape(patientId: string): BodyShapeRecord | undefined {
+  const records = getBodyShapeRecordsByPatient(patientId);
   if (records.length === 0) return undefined;
   return records[records.length - 1];
 }
@@ -730,6 +752,45 @@ export function applyInbodyOcrData(
   }).catch((err) => console.error('[sync] 인바디 OCR 저장 실패', err));
 }
 
+/** 체형결과지 OCR — 복부 바깥둘레·안쪽둘레·지방두께 반영 */
+export function applyBodyShapeOcrData(
+  visitId: string,
+  parsed: import('../lib/bodyShapeParser').BodyShapeParsedData,
+): void {
+  const visit = visits.find((v) => v.id === visitId);
+  if (!visit) return;
+
+  let record = bodyShapeRecords.find((r) => r.visitId === visitId);
+  if (!record) {
+    record = {
+      visitId,
+      outerCircumferenceCm: parsed.outerCircumferenceCm ?? 0,
+      innerCircumferenceCm: parsed.innerCircumferenceCm ?? 0,
+      fatThicknessMm: parsed.fatThicknessMm ?? 0,
+      noteText: parsed.noteText || '',
+      sheetImageUrl: '',
+    };
+    bodyShapeRecords.push(record);
+  } else {
+    if (parsed.outerCircumferenceCm != null) record.outerCircumferenceCm = parsed.outerCircumferenceCm;
+    if (parsed.innerCircumferenceCm != null) record.innerCircumferenceCm = parsed.innerCircumferenceCm;
+    if (parsed.fatThicknessMm != null) record.fatThicknessMm = parsed.fatThicknessMm;
+    if (parsed.noteText) record.noteText = parsed.noteText;
+  }
+
+  if (parsed.noteText) {
+    const tag = `체형 OCR: ${parsed.noteText}`;
+    visit.doctorNote = visit.doctorNote?.trim() ? `${visit.doctorNote}\n${tag}` : tag;
+  }
+
+  const targetVisit = visit;
+  const targetRecord = record;
+  void commitToServer('체형결과지 OCR 자동입력', async () => {
+    await persistVisit(targetVisit);
+    await persistBodyShape(targetRecord);
+  }).catch((err) => console.error('[sync] 체형결과지 OCR 저장 실패', err));
+}
+
 export async function setInbodySheetFile(visitId: string, file: File): Promise<string> {
   const url = assignObjectUrl(`inbody-${visitId}`, file);
   const visit = visits.find((v) => v.id === visitId);
@@ -773,6 +834,48 @@ export async function setInbodySheetFile(visitId: string, file: File): Promise<s
   }
 
   return record?.sheetImageUrl ?? url;
+}
+
+export async function setBodyShapeSheetFile(visitId: string, file: File): Promise<string> {
+  const url = assignObjectUrl(`body-shape-${visitId}`, file);
+  const visit = visits.find((v) => v.id === visitId);
+  let record = bodyShapeRecords.find((r) => r.visitId === visitId);
+  if (record) {
+    record.sheetImageUrl = url;
+  } else {
+    record = {
+      visitId,
+      outerCircumferenceCm: 0,
+      innerCircumferenceCm: 0,
+      fatThicknessMm: 0,
+      noteText: '',
+      sheetImageUrl: url,
+    };
+    bodyShapeRecords.push(record);
+  }
+  if (visit) {
+    visit.inbodyUploaded = true;
+    if (visit.status === '미완료') visit.status = '진행중';
+    recalcTodayStats();
+  }
+
+  const target = record;
+  if (isSupabaseEnabled && target) {
+    await commitToServer('체형결과지 저장', async () => {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `body-shape/${visitId}/sheet-${Date.now()}.${ext}`;
+      const uploaded = await uploadFile(path, file);
+      if (!uploaded) throw new Error('체형결과지 서버 저장에 실패했습니다. 다시 시도해주세요.');
+      target.sheetImageUrl = uploaded.publicUrl;
+      await persistBodyShape(target, uploaded.path);
+      if (visit) await persistVisit(visit);
+    });
+    saveDataCache();
+  } else if (target) {
+    saveDataCache();
+  }
+
+  return target?.sheetImageUrl ?? url;
 }
 
 export function updateVisit(visitId: string, data: Partial<VisitFormData>): Visit | undefined {
@@ -878,6 +981,21 @@ export function getChangeChartData(patientId: string) {
   }));
 }
 
+/** 방문별 복부 바깥둘레·안쪽둘레·지방두께 그래프 데이터 */
+export function getAbdomenChartData(patientId: string) {
+  return getBodyShapeRecordsByPatient(patientId)
+    .filter(
+      (r) =>
+        r.outerCircumferenceCm > 0 || r.innerCircumferenceCm > 0 || r.fatThicknessMm > 0,
+    )
+    .map((r) => ({
+      date: r.date.slice(5).replace('-', '.'),
+      outer: r.outerCircumferenceCm,
+      inner: r.innerCircumferenceCm,
+      fat: r.fatThicknessMm,
+    }));
+}
+
 export function getDoctorMemos(patientId: string, limit = 3): { date: string; note: string }[] {
   return getVisitsByPatientId(patientId)
     .filter((v) => v.doctorNote)
@@ -922,8 +1040,15 @@ interface DataCachePayload {
   visits: Visit[];
   visitImages: VisitImage[];
   inbodyRecords: InbodyRecord[];
+  bodyShapeRecords?: BodyShapeRecord[];
   savedAt: string;
 }
+
+type SecondaryData = {
+  visitImages: VisitImage[];
+  inbodyRecords: InbodyRecord[];
+  bodyShapeRecords: BodyShapeRecord[];
+};
 
 /** 로드 실패로 mock(샘플) 데이터를 표시 중인지 여부. true면 쓰기를 막아 DB 오염 방지. */
 let dataLoadFailed = false;
@@ -958,6 +1083,24 @@ function mergeInbodyRecords(serverRecords: InbodyRecord[]): void {
   replaceArray(inbodyRecords, [...byVisit.values()]);
 }
 
+function mergeBodyShapeRecords(serverRecords: BodyShapeRecord[]): void {
+  const byVisit = new Map(bodyShapeRecords.map((r) => [r.visitId, r]));
+  for (const rec of serverRecords) {
+    const prev = byVisit.get(rec.visitId);
+    if (!prev) {
+      byVisit.set(rec.visitId, rec);
+      continue;
+    }
+    byVisit.set(rec.visitId, {
+      ...prev,
+      ...rec,
+      sheetImageUrl: rec.sheetImageUrl || prev.sheetImageUrl,
+      noteText: rec.noteText || prev.noteText,
+    });
+  }
+  replaceArray(bodyShapeRecords, [...byVisit.values()]);
+}
+
 function applySecondaryOrCache(secondary: SecondaryData | null): void {
   if (!shouldApplyInitData()) {
     console.info('[init] 업로드 이후 초기화 완료 — 메모리 사진 데이터 유지');
@@ -967,6 +1110,7 @@ function applySecondaryOrCache(secondary: SecondaryData | null): void {
   if (secondary) {
     mergeVisitImages(secondary.visitImages);
     mergeInbodyRecords(secondary.inbodyRecords);
+    mergeBodyShapeRecords(secondary.bodyShapeRecords ?? []);
     return;
   }
 
@@ -979,9 +1123,12 @@ function applySecondaryOrCache(secondary: SecondaryData | null): void {
   );
   const cachedInbody =
     cache?.inbodyRecords?.filter((r) => visitIds.has(r.visitId)) ?? [];
+  const cachedBody =
+    cache?.bodyShapeRecords?.filter((r) => visitIds.has(r.visitId)) ?? [];
   if (cachedImages.length > 0) mergeVisitImages(cachedImages);
   if (cachedInbody.length > 0) mergeInbodyRecords(cachedInbody);
-  if (cachedImages.length === 0 && cachedInbody.length === 0) {
+  if (cachedBody.length > 0) mergeBodyShapeRecords(cachedBody);
+  if (cachedImages.length === 0 && cachedInbody.length === 0 && cachedBody.length === 0) {
     console.warn('[init] 사진/인바디 서버 로드 실패 — 캐시에도 유효한 이미지 없음');
   } else {
     console.warn('[init] 사진/인바디 서버 로드 실패 → 로컬 캐시 이미지 병합');
@@ -1000,6 +1147,7 @@ function saveDataCache(): void {
       visits: [...visits],
       visitImages: visitImages.filter((img) => isPersistableUrl(img.url)),
       inbodyRecords: inbodyRecords.filter((r) => visitIds.has(r.visitId)),
+      bodyShapeRecords: bodyShapeRecords.filter((r) => visitIds.has(r.visitId)),
       savedAt: new Date().toISOString(),
     };
     localStorage.setItem(DATA_CACHE_KEY, JSON.stringify(payload));
@@ -1031,6 +1179,7 @@ function filterCacheToPreserved(payload: DataCachePayload): DataCachePayload {
     visits: keptVisits,
     visitImages: (payload.visitImages ?? []).filter((img) => keptVisitIds.has(img.visitId)),
     inbodyRecords: (payload.inbodyRecords ?? []).filter((r) => keptVisitIds.has(r.visitId)),
+    bodyShapeRecords: (payload.bodyShapeRecords ?? []).filter((r) => keptVisitIds.has(r.visitId)),
   };
 }
 
@@ -1048,6 +1197,7 @@ function applyDataCache(payload: DataCachePayload): void {
     inbodyRecords,
     filtered.inbodyRecords ?? [],
   );
+  replaceArray(bodyShapeRecords, filtered.bodyShapeRecords ?? []);
   recalcTodayStats();
 }
 
@@ -1092,7 +1242,7 @@ export async function retryInitData(): Promise<boolean> {
   const result = await loadAllFromSupabase(2);
   if (result.status === 'empty') {
     if (!shouldApplyInitData()) return true;
-    await seedToSupabase({ patients, visits, visitImages, inbodyRecords });
+    await seedToSupabase({ patients, visits, visitImages, inbodyRecords, bodyShapeRecords });
     recalcTodayStats();
     allowCacheWrite = true;
     saveDataCache();
@@ -1104,6 +1254,7 @@ export async function retryInitData(): Promise<boolean> {
     replaceArray(visits, result.data.visits);
     mergeVisitImages(dedupeVisitImages(result.data.visitImages));
     mergeInbodyRecords(result.data.inbodyRecords);
+    mergeBodyShapeRecords(result.data.bodyShapeRecords ?? []);
     recalcTodayStats();
     offlineMode = false;
     allowCacheWrite = true;
@@ -1128,7 +1279,7 @@ async function doInit(): Promise<void> {
 
   if (result.status === 'empty') {
     if (!shouldApplyInitData()) return;
-    await seedToSupabase({ patients, visits, visitImages, inbodyRecords });
+    await seedToSupabase({ patients, visits, visitImages, inbodyRecords, bodyShapeRecords });
     recalcTodayStats();
     offlineMode = false;
     allowCacheWrite = true;

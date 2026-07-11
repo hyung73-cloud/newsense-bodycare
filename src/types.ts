@@ -66,6 +66,16 @@ export interface InbodyRecord {
   sheetImageUrl: string;
 }
 
+/** 체형결과지 — 복부 바깥둘레·안쪽둘레·지방두께 */
+export interface BodyShapeRecord {
+  visitId: string;
+  outerCircumferenceCm: number;
+  innerCircumferenceCm: number;
+  fatThicknessMm: number;
+  noteText: string;
+  sheetImageUrl: string;
+}
+
 export interface ProcedureTag {
   key: string;
   label: string;
