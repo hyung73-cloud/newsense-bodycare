@@ -2,10 +2,11 @@ import { X } from 'lucide-react';
 
 interface ImageZoomModalProps {
   url: string;
+  title?: string;
   onClose: () => void;
 }
 
-export default function ImageZoomModal({ url, onClose }: ImageZoomModalProps) {
+export default function ImageZoomModal({ url, title, onClose }: ImageZoomModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div
@@ -15,11 +16,14 @@ export default function ImageZoomModal({ url, onClose }: ImageZoomModalProps) {
         <button
           type="button"
           onClick={onClose}
-          className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50"
+          className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full shadow flex items-center justify-center hover:bg-gray-50 z-10"
         >
           <X className="w-4 h-4" />
         </button>
-        <img src={url} alt="확대" className="max-w-full max-h-[80vh] rounded-lg object-contain" />
+        {title && (
+          <div className="text-xs font-bold text-gray-700 px-2 pt-1 pb-2">{title}</div>
+        )}
+        <img src={url} alt={title || '확대'} className="max-w-full max-h-[80vh] rounded-lg object-contain" />
       </div>
     </div>
   );

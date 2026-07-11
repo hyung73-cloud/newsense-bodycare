@@ -22,6 +22,7 @@ import {
   getVisitImages,
   getInbodyRecordsByPatient,
   getLatestInbody,
+  getLatestBodyShape,
   getPatientVisitStats,
   getWeightChartData,
   getWaistChartData,
@@ -62,6 +63,7 @@ export default function PatientProfilePage() {
   const stats = id && latestVisit ? getPatientVisitStats(id, latestVisit) : null;
   const inbodyRecords = id ? getInbodyRecordsByPatient(id) : [];
   const latestInbody = id ? getLatestInbody(id) : undefined;
+  const latestBodyShape = id ? getLatestBodyShape(id) : undefined;
 
   if (!patient) {
     return (
@@ -360,7 +362,10 @@ export default function PatientProfilePage() {
               </div>
 
               <div className="grid grid-cols-3 gap-5 items-stretch">
-                <InbodySummary records={inbodyRecords} />
+                <InbodySummary
+                  records={inbodyRecords}
+                  bodyShapeSheetUrl={latestBodyShape?.sheetImageUrl}
+                />
                 <ChangeChart data={getChangeChartData(patient.id)} />
                 <AbdomenChart data={getAbdomenChartData(patient.id)} />
               </div>
@@ -432,7 +437,10 @@ export default function PatientProfilePage() {
         {activeTab === 'inbody' && (
           <div className="space-y-5">
             <div className="grid grid-cols-3 gap-5 items-stretch">
-              <InbodySummary records={inbodyRecords} />
+              <InbodySummary
+                records={inbodyRecords}
+                bodyShapeSheetUrl={latestBodyShape?.sheetImageUrl}
+              />
               <ChangeChart data={getChangeChartData(patient.id)} />
               <ResearchPanel items={researchItems} />
             </div>
