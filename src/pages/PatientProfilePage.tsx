@@ -355,7 +355,7 @@ export default function PatientProfilePage() {
                       </div>
                     </div>
 
-                    <PhotoCompareRow title="정면" slots={frontSlots} grow />
+                    <PhotoCompareRow title="정면" slots={frontSlots} grow showMetrics />
                     <PhotoCompareRow title="측면" slots={sideSlots} grow />
                   </div>
                 </div>
@@ -417,7 +417,7 @@ export default function PatientProfilePage() {
                   </div>
                 </div>
 
-                <PhotoCompareRow title="정면" slots={frontSlots} />
+                <PhotoCompareRow title="정면" slots={frontSlots} showMetrics />
                 <PhotoCompareRow title="측면" slots={sideSlots} />
 
                 <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-4 py-2 mt-4">
