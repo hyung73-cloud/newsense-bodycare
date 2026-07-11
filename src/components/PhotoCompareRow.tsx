@@ -23,8 +23,11 @@ const dotColorMap: Record<string, string> = {
   최근: 'bg-green-500',
 };
 
+const GRID_COLS_2 = 'grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)]';
+const GRID_COLS_3 = 'grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]';
+
 function gridCols(count: number) {
-  return `grid grid-cols-[40px_repeat(${count},minmax(0,1fr))]`;
+  return count <= 2 ? GRID_COLS_2 : GRID_COLS_3;
 }
 
 function MetricsTable({ slots }: { slots: PhotoSlot[] }) {
