@@ -224,12 +224,60 @@ export function getPreviousVisit(patientId: string): Visit | undefined {
   return list.length >= 2 ? list[list.length - 2] : undefined;
 }
 
-export function getVisitImages(visitId: string, type: 'front' | 'side'): VisitImage | undefined {
+export function getVisitImages(
+  visitId: string,
+  type: 'front' | 'side' | 'front_prev' | 'side_prev' | 'front_first' | 'side_first',
+): VisitImage | undefined {
   const matches = visitImages.filter(
     (img) => img.visitId === visitId && img.type === type && img.url && !isSampleOrBlobUrl(img.url),
   );
   if (matches.length === 0) return undefined;
   return matches.reduce((best, img) => pickBestImage(best, img));
+}
+
+/** 체형 비교 슬롯: 최초 / 이전 / 최신 */
+export function getPhotoCompareSlots(
+  patientId: string,
+  type: 'front' | 'side',
+): {
+  first?: { image: VisitImage; date: string; visitId: string };
+  prev?: { image: VisitImage; date: string; visitId: string };
+  latest?: { image: VisitImage; date: string; visitId: string };
+} {
+  const prevType = type === 'front' ? 'front_prev' : 'side_prev';
+  const firstType = type === 'front' ? 'front_first' : 'side_first';
+  const list = getVisitsByPatientId(patientId)
+    .map((v) => {
+      const image = getVisitImages(v.id, type);
+      if (!image) return null;
+      return { image, date: v.date, visitId: v.id };
+    })
+    .filter(Boolean) as { image: VisitImage; date: string; visitId: string }[];
+
+  if (list.length === 0) return {};
+
+  const latest = list[list.length - 1];
+  const firstVisit = list[0];
+
+  if (list.length >= 3) {
+    return { first: firstVisit, prev: list[list.length - 2], latest };
+  }
+  if (list.length === 2) {
+    return { first: firstVisit, latest };
+  }
+
+  // 방문 1회: 재업로드로 보관한 최초·직전 사진 활용
+  const lockedFirst = getVisitImages(latest.visitId, firstType);
+  const archivedPrev = getVisitImages(latest.visitId, prevType);
+  return {
+    first: lockedFirst
+      ? { image: lockedFirst, date: latest.date, visitId: latest.visitId }
+      : undefined,
+    prev: archivedPrev
+      ? { image: archivedPrev, date: latest.date, visitId: latest.visitId }
+      : undefined,
+    latest,
+  };
 }
 
 function visitImageId(visitId: string, type: ImageType): string {
@@ -601,10 +649,48 @@ function assignObjectUrl(regKey: string, file: File): string {
   return url;
 }
 
-export async function setVisitPhotoFile(visitId: string, type: ImageType, file: File): Promise<string> {
+export async function setVisitPhotoFile(visitId: string, type: 'front' | 'side', file: File): Promise<string> {
   const url = assignObjectUrl(`photo-${visitId}-${type}`, file);
   const visit = visits.find((v) => v.id === visitId);
   const canonicalId = visitImageId(visitId, type);
+  const prevType = type === 'front' ? 'front_prev' : 'side_prev';
+  const prevId = visitImageId(visitId, prevType);
+  const firstType = type === 'front' ? 'front_first' : 'side_first';
+  const firstId = visitImageId(visitId, firstType);
+
+  // 기존 현재 사진이 있으면 '이전'으로 보관 + 최초 사진은 1회만 고정
+  const existingCurrent =
+    visitImages.find((img) => img.id === canonicalId) ??
+    visitImages.find((img) => img.visitId === visitId && img.type === type);
+  if (existingCurrent && isPersistableMediaUrl(existingCurrent.url)) {
+    let prevImg = visitImages.find((img) => img.id === prevId);
+    if (!prevImg) {
+      prevImg = {
+        id: prevId,
+        visitId,
+        type: prevType,
+        url: existingCurrent.url,
+        weightKg: existingCurrent.weightKg,
+        waistCm: existingCurrent.waistCm,
+      };
+      visitImages.push(prevImg);
+    } else {
+      prevImg.url = existingCurrent.url;
+      prevImg.weightKg = existingCurrent.weightKg;
+      prevImg.waistCm = existingCurrent.waistCm;
+    }
+
+    if (!visitImages.find((img) => img.id === firstId)) {
+      visitImages.push({
+        id: firstId,
+        visitId,
+        type: firstType,
+        url: existingCurrent.url,
+        weightKg: existingCurrent.weightKg,
+        waistCm: existingCurrent.waistCm,
+      });
+    }
+  }
 
   let image = visitImages.find((img) => img.id === canonicalId);
   if (!image) {
@@ -617,6 +703,7 @@ export async function setVisitPhotoFile(visitId: string, type: ImageType, file: 
   if (image) {
     image.url = url;
     image.id = canonicalId;
+    image.type = type;
   } else {
     image = {
       id: canonicalId,
@@ -638,6 +725,7 @@ export async function setVisitPhotoFile(visitId: string, type: ImageType, file: 
   }
 
   const img = image;
+  const archivedPrev = visitImages.find((x) => x.id === prevId);
   if (isSupabaseEnabled) {
     await commitToServer(`${type === 'front' ? '정면' : '측면'} 사진 저장`, async () => {
       const ext = file.name.split('.').pop() || 'jpg';
@@ -646,6 +734,13 @@ export async function setVisitPhotoFile(visitId: string, type: ImageType, file: 
       if (!uploaded) throw new Error('사진 서버 저장에 실패했습니다. 다시 시도해주세요.');
       img.url = uploaded.publicUrl;
       await persistVisitImage(img, uploaded.path);
+      if (archivedPrev && isPersistableMediaUrl(archivedPrev.url)) {
+        await persistVisitImage(archivedPrev);
+      }
+      const archivedFirst = visitImages.find((x) => x.id === firstId);
+      if (archivedFirst && isPersistableMediaUrl(archivedFirst.url)) {
+        await persistVisitImage(archivedFirst);
+      }
       await deleteOtherVisitImages(visitId, type, canonicalId);
       if (visit) {
         await persistVisit(visit);

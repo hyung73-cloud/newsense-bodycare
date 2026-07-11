@@ -1,6 +1,6 @@
 export type Sex = '여' | '남';
 export type VisitStatus = '완료' | '진행중' | '미완료';
-export type ImageType = 'front' | 'side';
+export type ImageType = 'front' | 'side' | 'front_prev' | 'side_prev' | 'front_first' | 'side_first';
 
 /** 패키지(시술권) 영수증 한 줄 */
 export interface PackageTicketLine {

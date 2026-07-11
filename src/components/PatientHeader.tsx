@@ -1,5 +1,5 @@
 import { User, Plus, Upload, Phone, Camera } from 'lucide-react';
-import type { ImageType, Patient } from '../types';
+import type { Patient } from '../types';
 import FileUploadButton from './FileUploadButton';
 
 interface PatientHeaderProps {
@@ -7,7 +7,7 @@ interface PatientHeaderProps {
   avatarUrl?: string;
   onAddRecord?: () => void;
   onInbodyUpload?: () => void;
-  onPhotoUpload?: (type: ImageType, file: File) => void;
+  onPhotoUpload?: (type: 'front' | 'side', file: File) => void;
 }
 
 export default function PatientHeader({

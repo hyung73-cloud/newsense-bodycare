@@ -45,7 +45,7 @@ create index if not exists idx_visits_patient on visits(patient_id);
 create table if not exists visit_images (
   id text primary key,
   visit_id text not null references visits(id) on delete cascade,
-  type text not null check (type in ('front', 'side')),
+  type text not null check (type in ('front', 'side', 'front_prev', 'side_prev', 'front_first', 'side_first')),
   url text,
   storage_path text,
   weight_kg numeric not null default 0,

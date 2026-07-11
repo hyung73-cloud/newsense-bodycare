@@ -20,6 +20,7 @@ import {
   getLatestVisit,
   getVisitsByPatientId,
   getVisitImages,
+  getPhotoCompareSlots,
   getInbodyRecordsByPatient,
   getLatestInbody,
   getLatestBodyShape,
@@ -82,51 +83,50 @@ export default function PatientProfilePage() {
   const firstVisit = visits[0];
   const prevVisit = visits.length >= 2 ? visits[visits.length - 2] : undefined;
 
-  const frontSlots = firstVisit && latestVisit
-    ? [
-        {
-          label: '최초',
-          labelColor: 'bg-gray-500 text-white',
-          image: getVisitImages(firstVisit.id, 'front'),
-          date: firstVisit.date,
-        },
-        {
-          label: '이전',
-          labelColor: 'bg-blue-500 text-white',
-          image: prevVisit ? getVisitImages(prevVisit.id, 'front') : undefined,
-          date: prevVisit?.date,
-        },
-        {
-          label: '최신',
-          labelColor: 'bg-green-500 text-white',
-          image: getVisitImages(latestVisit.id, 'front'),
-          date: latestVisit.date,
-        },
-      ]
-    : [];
+  const frontCompare = id ? getPhotoCompareSlots(id, 'front') : {};
+  const sideCompare = id ? getPhotoCompareSlots(id, 'side') : {};
 
-  const sideSlots = firstVisit && latestVisit
-    ? [
-        {
-          label: '최초',
-          labelColor: 'bg-gray-500 text-white',
-          image: getVisitImages(firstVisit.id, 'side'),
-          date: firstVisit.date,
-        },
-        {
-          label: '이전',
-          labelColor: 'bg-blue-500 text-white',
-          image: prevVisit ? getVisitImages(prevVisit.id, 'side') : undefined,
-          date: prevVisit?.date,
-        },
-        {
-          label: '최신',
-          labelColor: 'bg-green-500 text-white',
-          image: getVisitImages(latestVisit.id, 'side'),
-          date: latestVisit.date,
-        },
-      ]
-    : [];
+  const frontSlots = [
+    {
+      label: '최초',
+      labelColor: 'bg-gray-500 text-white',
+      image: frontCompare.first?.image,
+      date: frontCompare.first?.date,
+    },
+    {
+      label: '이전',
+      labelColor: 'bg-blue-500 text-white',
+      image: frontCompare.prev?.image,
+      date: frontCompare.prev?.date,
+    },
+    {
+      label: '최신',
+      labelColor: 'bg-green-500 text-white',
+      image: frontCompare.latest?.image,
+      date: frontCompare.latest?.date,
+    },
+  ];
+
+  const sideSlots = [
+    {
+      label: '최초',
+      labelColor: 'bg-gray-500 text-white',
+      image: sideCompare.first?.image,
+      date: sideCompare.first?.date,
+    },
+    {
+      label: '이전',
+      labelColor: 'bg-blue-500 text-white',
+      image: sideCompare.prev?.image,
+      date: sideCompare.prev?.date,
+    },
+    {
+      label: '최신',
+      labelColor: 'bg-green-500 text-white',
+      image: sideCompare.latest?.image,
+      date: sideCompare.latest?.date,
+    },
+  ];
 
   const researchItems = latestInbody
     ? [
