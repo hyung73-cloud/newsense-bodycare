@@ -355,8 +355,8 @@ export default function PatientProfilePage() {
                       </div>
                     </div>
 
-                    <PhotoCompareRow title="정면" slots={frontSlots} grow showMetrics />
-                    <PhotoCompareRow title="측면" slots={sideSlots} grow />
+                    <PhotoCompareRow title="정면" slots={frontSlots} grow metricsPosition="above" />
+                    <PhotoCompareRow title="측면" slots={sideSlots} grow metricsPosition="below" />
                   </div>
                 </div>
               </div>
@@ -417,8 +417,8 @@ export default function PatientProfilePage() {
                   </div>
                 </div>
 
-                <PhotoCompareRow title="정면" slots={frontSlots} showMetrics />
-                <PhotoCompareRow title="측면" slots={sideSlots} />
+                <PhotoCompareRow title="정면" slots={frontSlots} metricsPosition="above" />
+                <PhotoCompareRow title="측면" slots={sideSlots} metricsPosition="below" />
 
                 <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-4 py-2 mt-4">
                   📷 촬영 가이드: 배꼽이 눈금자 0 위치에 오도록 서서 촬영합니다. (자동정렬 미구현 — 고정 가이드만 표시)
