@@ -18,18 +18,20 @@ interface PhotoCompareRowProps {
 }
 
 const dotColorMap: Record<string, string> = {
-  최초: 'bg-gray-500',
-  이전: 'bg-blue-500',
-  최신: 'bg-green-500',
+  그전: 'bg-blue-500',
+  오늘: 'bg-green-500',
+  최근: 'bg-green-500',
 };
 
-const GRID_COLS = 'grid grid-cols-[40px_repeat(3,minmax(0,1fr))]';
-const GRID_GAP = 'gap-x-0';
+function gridCols(count: number) {
+  return `grid grid-cols-[40px_repeat(${count},minmax(0,1fr))]`;
+}
 
 function MetricsTable({ slots }: { slots: PhotoSlot[] }) {
+  const cols = gridCols(slots.length);
   return (
     <div className="border border-gray-200 overflow-hidden text-sm">
-      <div className={`${GRID_COLS} ${GRID_GAP}`}>
+      <div className={`${cols} gap-x-0`}>
         <div className="bg-gray-50 px-1 py-1 text-[11px] text-gray-500 border-r border-b border-gray-200 flex items-center justify-center whitespace-nowrap">
           체중
         </div>
@@ -48,7 +50,7 @@ function MetricsTable({ slots }: { slots: PhotoSlot[] }) {
           </div>
         ))}
       </div>
-      <div className={`${GRID_COLS} ${GRID_GAP}`}>
+      <div className={`${cols} gap-x-0`}>
         <div className="bg-gray-50 px-1 py-1 text-[11px] text-gray-500 border-r border-gray-200 flex items-center justify-center whitespace-nowrap">
           허리
         </div>
@@ -80,8 +82,9 @@ function PhotoGrid({
   slots: PhotoSlot[];
   sideLabel?: boolean;
 }) {
+  const cols = gridCols(slots.length);
   return (
-    <div className={`${GRID_COLS} ${GRID_GAP}`}>
+    <div className={`${cols} gap-x-0`}>
       <div className="flex items-center justify-center text-[11px] font-semibold text-gray-600 bg-gray-50 border border-gray-200 border-r-0">
         {sideLabel ? (
           <span className="[writing-mode:vertical-rl] rotate-180 text-[12px] tracking-[0.15em] py-2">
@@ -122,9 +125,10 @@ export function PhotoComparePair({
   sideSlots: PhotoSlot[];
   grow?: boolean;
 }) {
+  const cols = gridCols(frontSlots.length);
   return (
     <div className="flex flex-col">
-      <div className={`${GRID_COLS} ${GRID_GAP} items-end mb-0`}>
+      <div className={`${cols} gap-x-0 items-end mb-0`}>
         <div className="text-[9px] text-gray-400 text-center leading-tight pb-1">
           단위
           <br />
@@ -162,10 +166,11 @@ export default function PhotoCompareRow({
   hideDateHeader = false,
   sideLabel = false,
 }: PhotoCompareRowProps) {
+  const cols = gridCols(slots.length);
   return (
     <div>
       {!hideDateHeader && !sideLabel && (
-        <div className={`${GRID_COLS} ${GRID_GAP} items-end mb-0`}>
+        <div className={`${cols} gap-x-0 items-end mb-0`}>
           <div />
           {slots.map((slot) => (
             <div key={slot.label} className="flex items-center justify-center gap-1 text-[11px] pb-1">

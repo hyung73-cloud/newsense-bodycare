@@ -604,6 +604,13 @@ export async function deleteOtherVisitImages(
   if (error) console.warn('[supabase] 중복 사진 행 삭제 실패', error.message);
 }
 
+/** 체형 사진 행 일괄 삭제 */
+export async function deleteVisitImagesByIds(ids: string[]): Promise<void> {
+  if (!isSupabaseEnabled || !supabase || ids.length === 0) return;
+  const { error } = await supabase.from('visit_images').delete().in('id', ids);
+  if (error) throw error;
+}
+
 export async function persistInbody(rec: InbodyRecord, storagePath?: string): Promise<void> {
   if (!isSupabaseEnabled || !supabase) return;
   const { error } = await supabase.from('inbody_records').upsert(inbodyToRow(rec, storagePath));

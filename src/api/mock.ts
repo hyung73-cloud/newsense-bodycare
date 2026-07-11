@@ -29,6 +29,7 @@ import {
   uploadFile,
   dedupeVisitImages,
   deleteOtherVisitImages,
+  deleteVisitImagesByIds,
 } from './supabaseData';
 import { isPersistableMediaUrl, isSampleOrBlobUrl, pickBestImage } from '../lib/mediaUrl';
 
@@ -235,49 +236,147 @@ export function getVisitImages(
   return matches.reduce((best, img) => pickBestImage(best, img));
 }
 
-/** 체형 비교 슬롯: 최초 / 이전 / 최신 */
+const BODY_PHOTO_TYPES: ImageType[] = [
+  'front',
+  'side',
+  'front_prev',
+  'side_prev',
+  'front_first',
+  'side_first',
+];
+
+function shiftDateYmd(ymd: string, deltaDays: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + deltaDays);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+}
+
+/** 체형 비교 슬롯: 방문 날짜 기준 그전 / 오늘 (같은 날 복제본 사용 안 함) */
 export function getPhotoCompareSlots(
   patientId: string,
   type: 'front' | 'side',
 ): {
-  first?: { image: VisitImage; date: string; visitId: string };
   prev?: { image: VisitImage; date: string; visitId: string };
-  latest?: { image: VisitImage; date: string; visitId: string };
+  today?: { image: VisitImage; date: string; visitId: string };
 } {
-  const prevType = type === 'front' ? 'front_prev' : 'side_prev';
-  const firstType = type === 'front' ? 'front_first' : 'side_first';
   const list = getVisitsByPatientId(patientId)
     .map((v) => {
       const image = getVisitImages(v.id, type);
-      if (!image) return null;
+      if (!image || !isPersistableMediaUrl(image.url)) return null;
       return { image, date: v.date, visitId: v.id };
     })
     .filter(Boolean) as { image: VisitImage; date: string; visitId: string }[];
 
   if (list.length === 0) return {};
 
-  const latest = list[list.length - 1];
-  const firstVisit = list[0];
+  const todayItem = list.find((x) => x.date === TODAY) ?? (list[list.length - 1].date === TODAY ? list[list.length - 1] : undefined);
+  const prevCandidates = list.filter((x) => x.date !== TODAY && (!todayItem || x.visitId !== todayItem.visitId));
+  const prevItem = prevCandidates.length > 0 ? prevCandidates[prevCandidates.length - 1] : undefined;
 
-  if (list.length >= 3) {
-    return { first: firstVisit, prev: list[list.length - 2], latest };
+  // 오늘 사진만 있으면 오늘만, 과거만 있으면 그전만
+  if (todayItem && prevItem) return { prev: prevItem, today: todayItem };
+  if (todayItem) return { today: todayItem };
+  if (list.length >= 2) {
+    return { prev: list[list.length - 2], today: list[list.length - 1] };
   }
-  if (list.length === 2) {
-    return { first: firstVisit, latest };
-  }
+  return { prev: list[0] };
+}
 
-  // 방문 1회: 재업로드로 보관한 최초·직전 사진 활용
-  const lockedFirst = getVisitImages(latest.visitId, firstType);
-  const archivedPrev = getVisitImages(latest.visitId, prevType);
+function visitMetricsFrom(patientId: string) {
+  const prev = getLatestVisit(patientId);
   return {
-    first: lockedFirst
-      ? { image: lockedFirst, date: latest.date, visitId: latest.visitId }
-      : undefined,
-    prev: archivedPrev
-      ? { image: archivedPrev, date: latest.date, visitId: latest.visitId }
-      : undefined,
-    latest,
+    weightKg: prev?.weightKg ?? 0,
+    waistCm: prev?.waistCm ?? 0,
+    bodyFatPct: prev?.bodyFatPct ?? 0,
+    skeletalMuscleKg: prev?.skeletalMuscleKg ?? 0,
+    visceralLevel: prev?.visceralLevel ?? 0,
+    status: '진행중' as const,
+    photoUploaded: false,
+    inbodyUploaded: false,
   };
+}
+
+/** 사진 업로드용 — 오늘 방문이 없으면 생성 */
+export function ensureTodayVisitForPhoto(patientId: string): Visit {
+  const existing = visits.find((v) => v.patientId === patientId && v.date === TODAY && !v.hidden);
+  if (existing) return existing;
+
+  return addVisitToday(patientId, {
+    ...visitMetricsFrom(patientId),
+    doctorNote: '오늘 체형 사진 업로드',
+  });
+}
+
+/** 그전 사진용 — 오늘이 아닌 최근 방문, 없으면 어제 방문 생성 */
+export function ensurePrevVisitForPhoto(patientId: string): Visit {
+  const nonToday = getVisitsByPatientId(patientId).filter((v) => v.date !== TODAY);
+  if (nonToday.length > 0) return nonToday[nonToday.length - 1];
+
+  const date = shiftDateYmd(TODAY, -1);
+  return addVisitOnDate(patientId, date, {
+    ...visitMetricsFrom(patientId),
+    doctorNote: '그전 체형 사진 업로드',
+  });
+}
+
+export function addVisitOnDate(patientId: string, date: string, data: VisitFormData): Visit {
+  const existing = visits.find((v) => v.patientId === patientId && v.date === date && !v.hidden);
+  if (existing) return existing;
+
+  const id = `v-${Date.now()}`;
+  const visit: Visit = {
+    id,
+    patientId,
+    date,
+    ...data,
+    enteredBy: staff.name,
+    enteredAt: nowFormatted(),
+    hidden: false,
+  };
+  visits.push(visit);
+  syncPatientStats(patientId);
+  recalcTodayStats();
+
+  const patient = patients.find((p) => p.id === patientId);
+  void commitToServer('방문 추가', async () => {
+    if (patient) await persistPatient(patient);
+    await persistVisit(visit);
+  }).catch((err) => console.error('[sync] 방문 추가 저장 실패', err));
+
+  return visit;
+}
+
+/** 환자 체형 사진(정면/측면/보관본) 전부 삭제 */
+export async function clearPatientBodyPhotos(patientId: string): Promise<void> {
+  const visitIds = visits.filter((v) => v.patientId === patientId).map((v) => v.id);
+  const toRemove = visitImages.filter(
+    (img) => visitIds.includes(img.visitId) && BODY_PHOTO_TYPES.includes(img.type),
+  );
+  const ids = toRemove.map((img) => img.id);
+  if (ids.length === 0) return;
+
+  for (let i = visitImages.length - 1; i >= 0; i--) {
+    if (ids.includes(visitImages[i].id)) visitImages.splice(i, 1);
+  }
+  for (const vid of visitIds) {
+    const visit = visits.find((v) => v.id === vid);
+    if (!visit) continue;
+    const hasFront = visitImages.some((img) => img.visitId === vid && img.type === 'front');
+    const hasSide = visitImages.some((img) => img.visitId === vid && img.type === 'side');
+    visit.photoUploaded = hasFront || hasSide;
+  }
+  syncPatientStats(patientId);
+
+  await commitToServer('체형 사진 초기화', async () => {
+    await deleteVisitImagesByIds(ids);
+    for (const vid of visitIds) {
+      const visit = visits.find((v) => v.id === vid);
+      if (visit) await persistVisit(visit);
+    }
+  });
+  saveDataCache();
 }
 
 function visitImageId(visitId: string, type: ImageType): string {

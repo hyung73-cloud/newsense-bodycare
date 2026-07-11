@@ -35,6 +35,9 @@ import {
   updateVisit,
   hasVisitToday,
   setVisitPhotoFile,
+  ensureTodayVisitForPhoto,
+  ensurePrevVisitForPhoto,
+  clearPatientBodyPhotos,
   setInbodySheetFile,
   setBodyShapeSheetFile,
   applyInbodyOcrData,
@@ -86,45 +89,35 @@ export default function PatientProfilePage() {
   const frontCompare = id ? getPhotoCompareSlots(id, 'front') : {};
   const sideCompare = id ? getPhotoCompareSlots(id, 'side') : {};
 
+  const toDotDate = (date?: string) => (date ? date.replace(/-/g, '.') : undefined);
+
   const frontSlots = [
     {
-      label: '최초',
-      labelColor: 'bg-gray-500 text-white',
-      image: frontCompare.first?.image,
-      date: frontCompare.first?.date,
-    },
-    {
-      label: '이전',
+      label: '그전',
       labelColor: 'bg-blue-500 text-white',
       image: frontCompare.prev?.image,
-      date: frontCompare.prev?.date,
+      date: toDotDate(frontCompare.prev?.date),
     },
     {
-      label: '최신',
+      label: '오늘',
       labelColor: 'bg-green-500 text-white',
-      image: frontCompare.latest?.image,
-      date: frontCompare.latest?.date,
+      image: frontCompare.today?.image,
+      date: toDotDate(frontCompare.today?.date ?? TODAY),
     },
   ];
 
   const sideSlots = [
     {
-      label: '최초',
-      labelColor: 'bg-gray-500 text-white',
-      image: sideCompare.first?.image,
-      date: sideCompare.first?.date,
-    },
-    {
-      label: '이전',
+      label: '그전',
       labelColor: 'bg-blue-500 text-white',
       image: sideCompare.prev?.image,
-      date: sideCompare.prev?.date,
+      date: toDotDate(sideCompare.prev?.date),
     },
     {
-      label: '최신',
+      label: '오늘',
       labelColor: 'bg-green-500 text-white',
-      image: sideCompare.latest?.image,
-      date: sideCompare.latest?.date,
+      image: sideCompare.today?.image,
+      date: toDotDate(sideCompare.today?.date ?? TODAY),
     },
   ];
 
@@ -196,15 +189,36 @@ export default function PatientProfilePage() {
     if (latestVisit) handleDelete(latestVisit);
   };
 
-  const handlePhotoUpload = async (type: ImageType, file: File) => {
-    if (!latestVisit) return;
+  const handlePhotoUpload = async (
+    type: ImageType,
+    file: File,
+    slot: 'prev' | 'today' = 'today',
+  ) => {
+    if (!id) return;
     try {
-      await setVisitPhotoFile(latestVisit.id, type, file);
+      const visit = slot === 'prev' ? ensurePrevVisitForPhoto(id) : ensureTodayVisitForPhoto(id);
+      await setVisitPhotoFile(visit.id, type === 'front' || type === 'side' ? type : 'front', file);
       bump();
-      showToast(`${type === 'front' ? '정면' : '측면'} 사진이 서버에 저장되었습니다. 새로고침해도 유지됩니다.`);
+      const slotLabel = slot === 'prev' ? '그전' : '오늘';
+      showToast(
+        `${slotLabel} ${type === 'front' ? '정면' : '측면'} 사진이 저장되었습니다 (${visit.date.replace(/-/g, '.')}).`,
+      );
     } catch (err) {
       bump();
       showToast(err instanceof Error ? err.message : '사진 저장에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+
+  const handleClearPhotos = async () => {
+    if (!id) return;
+    if (!window.confirm('이 환자의 체형 사진(정면/측면)을 모두 삭제할까요? 다시 올릴 수 있습니다.')) return;
+    try {
+      await clearPatientBodyPhotos(id);
+      bump();
+      showToast('체형 사진을 모두 지웠습니다. 그전/오늘 버튼을 눌러 다시 올려주세요.');
+    } catch (err) {
+      bump();
+      showToast(err instanceof Error ? err.message : '사진 삭제에 실패했습니다.');
     }
   };
 
@@ -251,6 +265,7 @@ export default function PatientProfilePage() {
           onAddRecord={openAddModal}
           onInbodyUpload={() => setInbodyModalOpen(true)}
           onPhotoUpload={handlePhotoUpload}
+          onClearPhotos={handleClearPhotos}
         />
 
         <PatientProfileTabs active={activeTab} onChange={setActiveTab} />
@@ -337,13 +352,10 @@ export default function PatientProfilePage() {
                       </div>
                       <div className="flex items-center gap-2 flex-wrap justify-end">
                         <span className="legend-pill">
-                          <span className="w-2 h-2 rounded-full bg-gray-500" /> 최초
+                          <span className="w-2 h-2 rounded-full bg-blue-500" /> 그전
                         </span>
                         <span className="legend-pill">
-                          <span className="w-2 h-2 rounded-full bg-blue-500" /> 이전
-                        </span>
-                        <span className="legend-pill">
-                          <span className="w-2 h-2 rounded-full bg-green-500" /> 최신
+                          <span className="w-2 h-2 rounded-full bg-green-500" /> 오늘
                         </span>
                         <button
                           type="button"
@@ -405,13 +417,10 @@ export default function PatientProfilePage() {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
                     <span className="legend-pill">
-                      <span className="w-2 h-2 rounded-full bg-gray-500" /> 최초
+                      <span className="w-2 h-2 rounded-full bg-blue-500" /> 그전
                     </span>
                     <span className="legend-pill">
-                      <span className="w-2 h-2 rounded-full bg-blue-500" /> 이전
-                    </span>
-                    <span className="legend-pill">
-                      <span className="w-2 h-2 rounded-full bg-green-500" /> 최신
+                      <span className="w-2 h-2 rounded-full bg-green-500" /> 오늘
                     </span>
                   </div>
                 </div>

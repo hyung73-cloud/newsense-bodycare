@@ -2,12 +2,15 @@ import { User, Plus, Upload, Phone, Camera } from 'lucide-react';
 import type { Patient } from '../types';
 import FileUploadButton from './FileUploadButton';
 
+export type PhotoUploadSlot = 'prev' | 'today';
+
 interface PatientHeaderProps {
   patient: Patient;
   avatarUrl?: string;
   onAddRecord?: () => void;
   onInbodyUpload?: () => void;
-  onPhotoUpload?: (type: 'front' | 'side', file: File) => void;
+  onPhotoUpload?: (type: 'front' | 'side', file: File, slot: PhotoUploadSlot) => void;
+  onClearPhotos?: () => void;
 }
 
 export default function PatientHeader({
@@ -16,6 +19,7 @@ export default function PatientHeader({
   onAddRecord,
   onInbodyUpload,
   onPhotoUpload,
+  onClearPhotos,
 }: PatientHeaderProps) {
   return (
     <div className="panel-card p-5 flex items-center justify-between">
@@ -61,32 +65,41 @@ export default function PatientHeader({
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-3 flex-wrap justify-end">
-        <button
-          type="button"
-          onClick={onAddRecord}
-          className="btn-primary"
-        >
+      <div className="flex items-center gap-2 flex-wrap justify-end">
+        <button type="button" onClick={onAddRecord} className="btn-primary">
           <Plus className="w-4 h-4" />
           오늘 기록 추가
         </button>
         {onPhotoUpload && (
           <>
-            <FileUploadButton onFile={(file) => onPhotoUpload('front', file)} className="btn-outline">
+            <FileUploadButton onFile={(file) => onPhotoUpload('front', file, 'prev')} className="btn-outline">
               <Camera className="w-4 h-4" />
-              정면 사진
+              그전 정면
             </FileUploadButton>
-            <FileUploadButton onFile={(file) => onPhotoUpload('side', file)} className="btn-outline">
+            <FileUploadButton onFile={(file) => onPhotoUpload('side', file, 'prev')} className="btn-outline">
               <Camera className="w-4 h-4" />
-              측면 사진
+              그전 측면
+            </FileUploadButton>
+            <FileUploadButton onFile={(file) => onPhotoUpload('front', file, 'today')} className="btn-outline">
+              <Camera className="w-4 h-4" />
+              오늘 정면
+            </FileUploadButton>
+            <FileUploadButton onFile={(file) => onPhotoUpload('side', file, 'today')} className="btn-outline">
+              <Camera className="w-4 h-4" />
+              오늘 측면
             </FileUploadButton>
           </>
         )}
-        <button
-          type="button"
-          onClick={onInbodyUpload}
-          className="btn-outline"
-        >
+        {onClearPhotos && (
+          <button
+            type="button"
+            onClick={onClearPhotos}
+            className="text-xs text-red-600 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-50"
+          >
+            체형 사진 초기화
+          </button>
+        )}
+        <button type="button" onClick={onInbodyUpload} className="btn-outline">
           <Upload className="w-4 h-4" />
           기록지 업로드
         </button>
