@@ -8,15 +8,6 @@ export interface PhotoSlot {
   date?: string;
 }
 
-interface PhotoCompareRowProps {
-  title: string;
-  slots: PhotoSlot[];
-  grow?: boolean;
-  metricsPosition?: 'above' | 'below' | 'none';
-  hideDateHeader?: boolean;
-  sideLabel?: boolean;
-}
-
 const dotColorMap: Record<string, string> = {
   그전: 'bg-blue-500',
   오늘: 'bg-green-500',
@@ -119,7 +110,7 @@ function PhotoGrid({
   );
 }
 
-/** 정면+측면 — 간격 없이 밀착 */
+/** 정면+측면 — 간격 없이 밀착 (그전 | 오늘) */
 export function PhotoComparePair({
   frontSlots,
   sideSlots,
@@ -158,44 +149,6 @@ export function PhotoComparePair({
       <div className="-mt-px">
         <MetricsTable slots={sideSlots} />
       </div>
-    </div>
-  );
-}
-
-export default function PhotoCompareRow({
-  title,
-  slots,
-  metricsPosition = 'none',
-  hideDateHeader = false,
-  sideLabel = false,
-}: PhotoCompareRowProps) {
-  const cols = gridCols(slots.length);
-  return (
-    <div>
-      {!hideDateHeader && !sideLabel && (
-        <div className={`${cols} gap-x-0 items-end mb-0`}>
-          <div />
-          {slots.map((slot) => (
-            <div key={slot.label} className="flex items-center justify-center gap-1 text-[11px] pb-1">
-              <span className={`w-1.5 h-1.5 rounded-full ${dotColorMap[slot.label] ?? 'bg-gray-400'}`} />
-              <span className="text-gray-600 font-medium whitespace-nowrap">
-                {slot.date ? slot.date.replace(/-/g, '.') : '-'}
-              </span>
-              <span className="text-gray-400">({slot.label})</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {metricsPosition === 'above' && <MetricsTable slots={slots} />}
-      <div className={metricsPosition === 'above' ? '-mt-px' : ''}>
-        <PhotoGrid title={title} slots={slots} sideLabel={sideLabel} />
-      </div>
-      {metricsPosition === 'below' && (
-        <div className="-mt-px">
-          <MetricsTable slots={slots} />
-        </div>
-      )}
     </div>
   );
 }

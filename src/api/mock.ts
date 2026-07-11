@@ -20,7 +20,6 @@ import {
   loadCriticalFromSupabase,
   loadSecondaryFromSupabase,
   loadAllFromSupabase,
-  seedToSupabase,
   persistPatient,
   persistVisit,
   persistVisitImage,
@@ -54,17 +53,6 @@ async function commitToServer(label: string, fn: () => Promise<void>): Promise<v
   }
 }
 
-const PLACEHOLDER_FRONT =
-  'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200&h=280&fit=crop&crop=center';
-const PLACEHOLDER_SIDE =
-  'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=200&h=280&fit=crop&crop=center';
-const INBODY_SHEET =
-  'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=300&h=400&fit=crop';
-
-void PLACEHOLDER_FRONT;
-void PLACEHOLDER_SIDE;
-void INBODY_SHEET;
-
 const _now = new Date();
 const _pad = (n: number) => String(n).padStart(2, '0');
 const _dow = ['일', '월', '화', '수', '목', '금', '토'][_now.getDay()];
@@ -75,9 +63,6 @@ export const TODAY = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(
 export const TODAY_DISPLAY = `${_now.getFullYear()}.${_pad(_now.getMonth() + 1)}.${_pad(_now.getDate())} (${_dow})`;
 
 export const staff: StaffInfo = { name: '김민수' };
-
-/** 운영 DB에서 삭제할 시드(테스트) 차트번호 — 수동 SQL 정리용. 앱 시작 시 자동 삭제하지 않음. */
-export const TEST_SEED_CHART_NOS = ['000125', '000118', '000132', '000109', '000141', '000098'];
 
 export const patients: Patient[] = [];
 
@@ -855,11 +840,9 @@ export async function setVisitPhotoFile(visitId: string, type: 'front' | 'side',
   return img.url;
 }
 
-/** OCR 자동입력 비활성 차트 (수동 등록·기존 환자) */
-export const INBODY_OCR_SKIP_CHART_NOS = ['8853'];
-
-export function isInbodyOcrEnabledForPatient(patient: Patient): boolean {
-  return !INBODY_OCR_SKIP_CHART_NOS.includes(patient.chartNo.trim());
+/** OCR 자동입력 — 모든 환자에 활성 */
+export function isInbodyOcrEnabledForPatient(_patient: Patient): boolean {
+  return true;
 }
 
 /** OCR 파싱 결과를 환자·방문·인바디 수치에 반영 */
@@ -1227,7 +1210,18 @@ function replaceArray<T>(target: T[], next: T[]): void {
 
 let initPromise: Promise<void> | null = null;
 
-const DATA_CACHE_KEY = 'bodycare-data-cache-v1';
+const DATA_CACHE_KEY = 'bodycare-data-cache-v2';
+const LEGACY_DATA_CACHE_KEYS = ['bodycare-data-cache-v1'];
+
+function clearLegacyDataCaches(): void {
+  try {
+    for (const key of LEGACY_DATA_CACHE_KEYS) {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 interface DataCachePayload {
   patients: Patient[];
@@ -1362,36 +1356,17 @@ function loadDataCache(): DataCachePayload | null {
   }
 }
 
-function filterCacheToPreserved(payload: DataCachePayload): DataCachePayload {
-  const keptPatients = payload.patients.filter((p) => !TEST_SEED_CHART_NOS.includes(p.chartNo));
-  const keptPatientIds = new Set(keptPatients.map((p) => p.id));
-  const keptVisits = payload.visits.filter((v) => keptPatientIds.has(v.patientId));
-  const keptVisitIds = new Set(keptVisits.map((v) => v.id));
-  return {
-    ...payload,
-    patients: keptPatients,
-    visits: keptVisits,
-    visitImages: (payload.visitImages ?? []).filter((img) => keptVisitIds.has(img.visitId)),
-    inbodyRecords: (payload.inbodyRecords ?? []).filter((r) => keptVisitIds.has(r.visitId)),
-    bodyShapeRecords: (payload.bodyShapeRecords ?? []).filter((r) => keptVisitIds.has(r.visitId)),
-  };
-}
-
 function applyDataCache(payload: DataCachePayload): void {
-  const filtered = filterCacheToPreserved(payload);
-  replaceArray(patients, filtered.patients);
-  replaceArray(visits, filtered.visits);
+  replaceArray(patients, payload.patients);
+  replaceArray(visits, payload.visits);
   replaceArray(
     visitImages,
     dedupeVisitImages(
-      (filtered.visitImages ?? []).filter((img) => isPersistableMediaUrl(img.url)),
+      (payload.visitImages ?? []).filter((img) => isPersistableMediaUrl(img.url)),
     ),
   );
-  replaceArray(
-    inbodyRecords,
-    filtered.inbodyRecords ?? [],
-  );
-  replaceArray(bodyShapeRecords, filtered.bodyShapeRecords ?? []);
+  replaceArray(inbodyRecords, payload.inbodyRecords ?? []);
+  replaceArray(bodyShapeRecords, payload.bodyShapeRecords ?? []);
   recalcTodayStats();
 }
 
@@ -1436,7 +1411,11 @@ export async function retryInitData(): Promise<boolean> {
   const result = await loadAllFromSupabase(2);
   if (result.status === 'empty') {
     if (!shouldApplyInitData()) return true;
-    await seedToSupabase({ patients, visits, visitImages, inbodyRecords, bodyShapeRecords });
+    replaceArray(patients, []);
+    replaceArray(visits, []);
+    replaceArray(visitImages, []);
+    replaceArray(inbodyRecords, []);
+    replaceArray(bodyShapeRecords, []);
     recalcTodayStats();
     allowCacheWrite = true;
     saveDataCache();
@@ -1466,6 +1445,7 @@ export async function retryInitData(): Promise<boolean> {
 async function doInit(): Promise<void> {
   if (!isSupabaseEnabled) return;
 
+  clearLegacyDataCaches();
   initStartedAt = Date.now();
   await waitForAuthSession(5000);
 
@@ -1473,7 +1453,11 @@ async function doInit(): Promise<void> {
 
   if (result.status === 'empty') {
     if (!shouldApplyInitData()) return;
-    await seedToSupabase({ patients, visits, visitImages, inbodyRecords, bodyShapeRecords });
+    replaceArray(patients, []);
+    replaceArray(visits, []);
+    replaceArray(visitImages, []);
+    replaceArray(inbodyRecords, []);
+    replaceArray(bodyShapeRecords, []);
     recalcTodayStats();
     offlineMode = false;
     allowCacheWrite = true;

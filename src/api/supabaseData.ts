@@ -551,19 +551,6 @@ export async function loadAllFromSupabase(maxRetries = 2): Promise<LoadResult> {
   return { status: 'error' };
 }
 
-/** 최초 실행 시 현재 in-memory 샘플 데이터를 DB에 채운다. */
-export async function seedToSupabase(data: LoadedData): Promise<void> {
-  if (!isSupabaseEnabled || !supabase) return;
-  try {
-    await supabase.from('patients').upsert(data.patients.map(patientToRow));
-    await supabase.from('visits').upsert(data.visits.map(visitToRow));
-    // 샘플 placeholder 사진·인바디는 DB에 넣지 않음 (실제 업로드만 저장)
-    console.info('[supabase] 초기 환자·방문 데이터 시드 완료');
-  } catch (err) {
-    console.error('[supabase] 시드 실패', err);
-  }
-}
-
 /* ──────────────────────────────────────────────
  * 개별 저장(쓰기) — 실패해도 UI를 막지 않도록 오류는 로깅만
  * ────────────────────────────────────────────── */

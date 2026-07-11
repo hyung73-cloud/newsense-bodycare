@@ -83,9 +83,6 @@ export default function PatientProfilePage() {
     );
   }
 
-  const firstVisit = visits[0];
-  const prevVisit = visits.length >= 2 ? visits[visits.length - 2] : undefined;
-
   const frontCompare = id ? getPhotoCompareSlots(id, 'front') : {};
   const sideCompare = id ? getPhotoCompareSlots(id, 'side') : {};
 
