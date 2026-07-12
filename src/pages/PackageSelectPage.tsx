@@ -91,7 +91,7 @@ const LEVELS: Level[] = [
     ring: 'ring-blue-500 border-blue-500',
     chip: 'bg-blue-50 text-blue-700',
     icon: HeartPulse,
-    features: ['2회진료권 전체 포함', '허리둘레 측정', '체형사진(+1)', '당화혈색소 검사'],
+    features: ['2회진료권 전체 포함', '허리둘레 측정', '악력(근력)측정', '당화혈색소 검사'],
   },
   {
     key: 'premium',
@@ -103,7 +103,7 @@ const LEVELS: Level[] = [
     ring: 'ring-purple-500 border-purple-500',
     chip: 'bg-purple-50 text-purple-700',
     icon: Camera,
-    features: ['5회진료권 전체 포함', '카복시 관리(4회)', 'HPL(+5)', '변화 리포트'],
+    features: ['5회진료권 전체 포함', '카복시 관리(4회)', 'HPL(+5)', '체형사진(+1)'],
   },
 ];
 
