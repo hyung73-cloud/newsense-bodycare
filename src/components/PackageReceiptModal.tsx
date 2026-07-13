@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Ticket, Printer, Pencil, Plus, Trash2, Save } from 'lucide-react';
 import type { PackageTicketLine, Patient, Visit } from '../types';
 import { formatWon, getPackageDisplay, getPackageTickets, sumTicketPrices } from '../lib/packageDisplay';
-import { updateVisitPackage } from '../api/mock';
+import { clearVisitPackage, updateVisitPackage } from '../api/mock';
 
 interface PackageReceiptModalProps {
   open: boolean;
@@ -24,12 +24,16 @@ export default function PackageReceiptModal({
   const [packageName, setPackageName] = useState('');
   const [tickets, setTickets] = useState<PackageTicketLine[]>([]);
   const [saving, setSaving] = useState(false);
+  const hasPackage = Boolean(visit.packageName?.trim() || getPackageTickets(visit).length > 0);
 
   useEffect(() => {
     if (!open) return;
-    setEditing(false);
-    setPackageName(visit.packageName?.trim() ?? '');
-    setTickets(getPackageTickets(visit));
+    const ticketsInit = getPackageTickets(visit);
+    const nameInit = visit.packageName?.trim() ?? '';
+    const empty = !nameInit && ticketsInit.length === 0;
+    setEditing(empty); // 패키지 없으면 바로 등록 모드
+    setPackageName(nameInit);
+    setTickets(empty ? [{ label: '', sub: '패키지', price: 0 }] : ticketsInit);
   }, [open, visit]);
 
   const packageDisplay = useMemo(() => getPackageDisplay(visit), [visit]);
@@ -86,10 +90,30 @@ export default function PackageReceiptModal({
     }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm('이 방문의 패키지·시술권 정보를 삭제할까요?')) return;
+    setSaving(true);
+    try {
+      await clearVisitPackage(visit.id);
+      onSaved?.();
+      onClose();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : '패키지 삭제에 실패했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const cancelEdit = () => {
+    const ticketsInit = getPackageTickets(visit);
+    const nameInit = visit.packageName?.trim() ?? '';
+    if (!nameInit && ticketsInit.length === 0) {
+      onClose();
+      return;
+    }
     setEditing(false);
-    setPackageName(visit.packageName?.trim() ?? '');
-    setTickets(getPackageTickets(visit));
+    setPackageName(nameInit);
+    setTickets(ticketsInit);
   };
 
   return createPortal(
@@ -104,7 +128,9 @@ export default function PackageReceiptModal({
               <Ticket className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-900">패키지권 전체 영수증</h2>
+              <h2 className="font-bold text-gray-900">
+                {hasPackage && !editing ? '패키지권 전체 영수증' : '패키지 등록'}
+              </h2>
               <p className="text-[11px] text-gray-500">방문일 {visit.date.replace(/-/g, '.')}</p>
             </div>
           </div>
@@ -256,6 +282,14 @@ export default function PackageReceiptModal({
             </>
           ) : (
             <>
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={saving || !hasPackage}
+                className="flex-1 flex items-center justify-center gap-2 border border-red-200 text-red-600 font-semibold py-2.5 rounded-xl hover:bg-red-50 disabled:opacity-40"
+              >
+                <Trash2 className="w-4 h-4" /> 삭제
+              </button>
               <button
                 type="button"
                 onClick={() => window.print()}

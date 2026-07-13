@@ -5,11 +5,16 @@ import {
   CheckCircle,
   XCircle,
   ChevronRight,
+  Plus,
+  StickyNote,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Patient, Visit, VisitStatus } from '../types';
+import type { VisitFormData } from '../api/mock';
+import { updateVisit } from '../api/mock';
 import { formatWon, getPackageDisplay } from '../lib/packageDisplay';
 import PackageReceiptModal from './PackageReceiptModal';
+import VisitFormModal from './VisitFormModal';
 
 const INITIAL_LIMIT = 5;
 
@@ -60,7 +65,15 @@ function PackageCell({
 }) {
   const pkg = getPackageDisplay(visit);
   if (!pkg) {
-    return <span className="text-gray-300 text-xs">-</span>;
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:bg-primary/5 rounded-lg px-1.5 py-1"
+      >
+        <Plus className="w-3.5 h-3.5" /> 등록
+      </button>
+    );
   }
 
   return (
@@ -81,10 +94,47 @@ function PackageCell({
   );
 }
 
+function MemoCell({
+  visit,
+  onOpen,
+}: {
+  visit: TodayVisitRow;
+  onOpen: () => void;
+}) {
+  const note = visit.doctorNote?.trim() ?? '';
+  const preview =
+    note &&
+    !note.startsWith('패키지 등록:') &&
+    note !== '오늘 체형 사진 업로드' &&
+    note !== '그전 체형 사진 업로드'
+      ? note
+      : '';
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full text-left rounded-lg px-1.5 py-1 hover:bg-amber-50 transition-colors"
+      title={preview || '메모 작성'}
+    >
+      <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-700">
+        <StickyNote className="w-3.5 h-3.5 shrink-0" />
+        {preview ? '메모' : '작성'}
+      </div>
+      {preview ? (
+        <p className="text-[10px] text-gray-500 line-clamp-1 mt-0.5">{preview}</p>
+      ) : (
+        <p className="text-[10px] text-gray-300 mt-0.5">-</p>
+      )}
+    </button>
+  );
+}
+
 export default function TodayVisitTable({ visits, className = '', onPackageUpdated }: TodayVisitTableProps) {
   const [expanded, setExpanded] = useState(false);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [receiptVisit, setReceiptVisit] = useState<TodayVisitRow | null>(null);
+  const [memoVisit, setMemoVisit] = useState<TodayVisitRow | null>(null);
 
   const counts: Record<FilterKey, number> = {
     all: visits.length,
@@ -96,6 +146,16 @@ export default function TodayVisitTable({ visits, className = '', onPackageUpdat
   const filtered = filter === 'all' ? visits : visits.filter((v) => v.status === filter);
   const hasMore = filtered.length > INITIAL_LIMIT;
   const visibleVisits = expanded ? filtered : filtered.slice(0, INITIAL_LIMIT);
+
+  const handleMemoSave = async (data: VisitFormData) => {
+    if (!memoVisit) return;
+    try {
+      await updateVisit(memoVisit.id, data);
+      onPackageUpdated?.();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : '메모 저장에 실패했습니다.');
+    }
+  };
 
   return (
     <div className={`panel-card overflow-hidden flex flex-col ${className}`}>
@@ -140,8 +200,11 @@ export default function TodayVisitTable({ visits, className = '', onPackageUpdat
               <th className="table-head-cell text-center w-10 px-1" title="인바디">
                 인바디
               </th>
-              <th className="table-head-cell text-center w-[5.5rem] sticky right-[9.5rem] z-20 bg-gray-50 shadow-[-6px_0_10px_-8px_rgba(0,0,0,0.12)]">
+              <th className="table-head-cell text-center w-[5.5rem] sticky right-[18rem] z-20 bg-gray-50 shadow-[-6px_0_10px_-8px_rgba(0,0,0,0.12)]">
                 상태
+              </th>
+              <th className="table-head-cell text-left w-[8.5rem] sticky right-[9.5rem] z-20 bg-gray-50">
+                메모
               </th>
               <th className="table-head-cell text-left w-[9.5rem] sticky right-0 z-20 bg-gray-50">
                 패키지
@@ -185,8 +248,11 @@ export default function TodayVisitTable({ visits, className = '', onPackageUpdat
                     <XCircle className="w-3.5 h-3.5 text-rose-400 inline" />
                   )}
                 </td>
-                <td className="px-2 py-2.5 text-center align-middle sticky right-[9.5rem] z-10 bg-white group-hover:bg-gray-50/70 shadow-[-6px_0_10px_-8px_rgba(0,0,0,0.08)]">
+                <td className="px-2 py-2.5 text-center align-middle sticky right-[18rem] z-10 bg-white group-hover:bg-gray-50/70 shadow-[-6px_0_10px_-8px_rgba(0,0,0,0.08)]">
                   <StatusBadge status={v.status} />
+                </td>
+                <td className="px-1 py-2.5 align-middle sticky right-[9.5rem] z-10 bg-white group-hover:bg-gray-50/70">
+                  <MemoCell visit={v} onOpen={() => setMemoVisit(v)} />
                 </td>
                 <td className="px-2 py-2.5 align-middle sticky right-0 z-10 bg-white group-hover:bg-gray-50/70">
                   <PackageCell visit={v} onOpen={() => setReceiptVisit(v)} />
@@ -195,7 +261,7 @@ export default function TodayVisitTable({ visits, className = '', onPackageUpdat
             ))}
             {visibleVisits.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-xs text-gray-400">
+                <td colSpan={11} className="px-3 py-8 text-center text-xs text-gray-400">
                   해당 상태의 방문 기록이 없습니다.
                 </td>
               </tr>
@@ -222,6 +288,18 @@ export default function TodayVisitTable({ visits, className = '', onPackageUpdat
           patient={receiptVisit.patient}
           onClose={() => setReceiptVisit(null)}
           onSaved={onPackageUpdated}
+        />
+      )}
+      {memoVisit && (
+        <VisitFormModal
+          open
+          mode="edit"
+          initial={memoVisit}
+          onClose={() => setMemoVisit(null)}
+          onSave={(data) => {
+            void handleMemoSave(data);
+            setMemoVisit(null);
+          }}
         />
       )}
     </div>

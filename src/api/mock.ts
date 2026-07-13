@@ -758,6 +758,24 @@ export async function updateVisitPackage(
   return visit;
 }
 
+/** 방문에 연결된 패키지·시술권 정보 삭제 */
+export async function clearVisitPackage(visitId: string): Promise<Visit | undefined> {
+  const visit = visits.find((v) => v.id === visitId);
+  if (!visit) return undefined;
+
+  visit.packageName = undefined;
+  visit.packageDetail = undefined;
+  visit.packagePrice = undefined;
+  visit.packageTickets = undefined;
+  visit.enteredAt = nowFormatted();
+
+  await commitToServer('패키지 삭제', async () => {
+    await persistVisit(visit);
+  });
+
+  return visit;
+}
+
 export async function markLatestVisitInbodyUploaded(patientId: string): Promise<boolean> {
   const visit = getLatestVisit(patientId);
   if (!visit || visit.date !== TODAY) return false;
