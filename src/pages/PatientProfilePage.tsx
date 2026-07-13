@@ -169,10 +169,10 @@ export default function PatientProfilePage() {
       if (modalMode === 'add') {
         await addVisitToday(id, data);
         setActiveTab('records');
-        showToast('오늘 기록이 서버에 저장되었습니다.');
+        showToast('오늘 메모가 서버에 저장되었습니다.');
       } else if (editingVisit) {
         await updateVisit(editingVisit.id, data);
-        showToast('기록이 서버에 저장되었습니다.');
+        showToast('메모가 서버에 저장되었습니다.');
       }
       bump();
     } catch (err) {
@@ -398,7 +398,7 @@ export default function PatientProfilePage() {
                   onClick={openAddModal}
                   className="text-sm text-primary border border-primary px-4 py-2 rounded-lg hover:bg-blue-50"
                 >
-                  오늘 기록 추가하기
+                  오늘 메모 작성하기
                 </button>
               </div>
             )}
@@ -493,6 +493,17 @@ export default function PatientProfilePage() {
         open={modalOpen}
         mode={modalMode}
         initial={editingVisit}
+        seedMetrics={
+          latestVisit
+            ? {
+                weightKg: latestVisit.weightKg,
+                waistCm: latestVisit.waistCm,
+                bodyFatPct: latestVisit.bodyFatPct,
+                skeletalMuscleKg: latestVisit.skeletalMuscleKg,
+                visceralLevel: latestVisit.visceralLevel,
+              }
+            : undefined
+        }
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
       />

@@ -7,27 +7,42 @@ interface VisitFormModalProps {
   open: boolean;
   mode: 'add' | 'edit';
   initial?: Visit;
+  /** 신규 방문 추가 시 기존 수치 유지용(수동 입력 없음 — OCR이 채움) */
+  seedMetrics?: Pick<
+    VisitFormData,
+    'weightKg' | 'waistCm' | 'bodyFatPct' | 'skeletalMuscleKg' | 'visceralLevel'
+  >;
   onClose: () => void;
   onSave: (data: VisitFormData) => void;
 }
 
-const defaultForm: VisitFormData = {
-  weightKg: 70,
-  waistCm: 84,
-  bodyFatPct: 40,
-  skeletalMuscleKg: 20,
-  visceralLevel: 12,
-  doctorNote: '',
-  status: '완료',
-  photoUploaded: true,
-  inbodyUploaded: true,
+const emptyMetrics = {
+  weightKg: 0,
+  waistCm: 0,
+  bodyFatPct: 0,
+  skeletalMuscleKg: 0,
+  visceralLevel: 0,
 };
 
-export default function VisitFormModal({ open, mode, initial, onClose, onSave }: VisitFormModalProps) {
-  const [form, setForm] = useState<VisitFormData>(defaultForm);
+export default function VisitFormModal({
+  open,
+  mode,
+  initial,
+  seedMetrics,
+  onClose,
+  onSave,
+}: VisitFormModalProps) {
+  const [form, setForm] = useState<VisitFormData>({
+    ...emptyMetrics,
+    doctorNote: '',
+    status: '진행중',
+    photoUploaded: false,
+    inbodyUploaded: false,
+  });
 
   useEffect(() => {
-    if (open && initial && mode === 'edit') {
+    if (!open) return;
+    if (mode === 'edit' && initial) {
       setForm({
         weightKg: initial.weightKg,
         waistCm: initial.waistCm,
@@ -39,9 +54,17 @@ export default function VisitFormModal({ open, mode, initial, onClose, onSave }:
         photoUploaded: initial.photoUploaded,
         inbodyUploaded: initial.inbodyUploaded,
       });
-    } else if (open && mode === 'add') {
-      setForm({ ...defaultForm, doctorNote: '오늘 방문 기록 추가' });
+      return;
     }
+    setForm({
+      ...(seedMetrics ?? emptyMetrics),
+      doctorNote: '',
+      status: '진행중',
+      photoUploaded: false,
+      inbodyUploaded: false,
+    });
+    // seedMetrics는 모달 열릴 때만 반영
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial, mode]);
 
   if (!open) return null;
@@ -63,85 +86,37 @@ export default function VisitFormModal({ open, mode, initial, onClose, onSave }:
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="font-bold text-gray-900">
-            {mode === 'add' ? '오늘 기록 추가' : '기록 수정'}
-          </h3>
+          <div>
+            <h3 className="font-bold text-gray-900">{mode === 'add' ? '오늘 메모' : '메모 수정'}</h3>
+            <p className="text-xs text-gray-400 mt-0.5">체중·인바디 수치는 기록지 OCR로 자동 입력됩니다</p>
+          </div>
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="체중 (kg)">
-              <input
-                type="number"
-                step="0.1"
-                value={form.weightKg}
-                onChange={(e) => set('weightKg', Number(e.target.value))}
-                className="input-field"
-                required
-              />
-            </Field>
-            <Field label="허리둘레 (cm)">
-              <input
-                type="number"
-                step="0.1"
-                value={form.waistCm}
-                onChange={(e) => set('waistCm', Number(e.target.value))}
-                className="input-field"
-                required
-              />
-            </Field>
-            <Field label="체지방률 (%)">
-              <input
-                type="number"
-                step="0.1"
-                value={form.bodyFatPct}
-                onChange={(e) => set('bodyFatPct', Number(e.target.value))}
-                className="input-field"
-                required
-              />
-            </Field>
-            <Field label="골격근량 (kg)">
-              <input
-                type="number"
-                step="0.1"
-                value={form.skeletalMuscleKg}
-                onChange={(e) => set('skeletalMuscleKg', Number(e.target.value))}
-                className="input-field"
-                required
-              />
-            </Field>
-            <Field label="내장지방레벨">
-              <input
-                type="number"
-                value={form.visceralLevel}
-                onChange={(e) => set('visceralLevel', Number(e.target.value))}
-                className="input-field"
-                required
-              />
-            </Field>
-            <Field label="입력상태">
-              <select
-                value={form.status}
-                onChange={(e) => set('status', e.target.value as VisitStatus)}
-                className="input-field"
-              >
-                <option value="완료">완료</option>
-                <option value="진행중">진행중</option>
-                <option value="미완료">미완료</option>
-              </select>
-            </Field>
-          </div>
-
           <Field label="의사 메모">
             <textarea
               value={form.doctorNote}
               onChange={(e) => set('doctorNote', e.target.value)}
-              rows={3}
+              rows={5}
               className="input-field resize-none"
+              placeholder="오늘 상담·소견을 입력하세요"
+              autoFocus
             />
+          </Field>
+
+          <Field label="입력상태">
+            <select
+              value={form.status}
+              onChange={(e) => set('status', e.target.value as VisitStatus)}
+              className="input-field"
+            >
+              <option value="진행중">진행중</option>
+              <option value="완료">완료</option>
+              <option value="미완료">미완료</option>
+            </select>
           </Field>
 
           <div className="flex gap-6 text-sm">
@@ -151,7 +126,7 @@ export default function VisitFormModal({ open, mode, initial, onClose, onSave }:
                 checked={form.photoUploaded}
                 onChange={(e) => set('photoUploaded', e.target.checked)}
               />
-              사진 업로드 완료
+              사진 완료
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -159,7 +134,7 @@ export default function VisitFormModal({ open, mode, initial, onClose, onSave }:
                 checked={form.inbodyUploaded}
                 onChange={(e) => set('inbodyUploaded', e.target.checked)}
               />
-              인바디 업로드 완료
+              인바디 완료
             </label>
           </div>
 

@@ -68,7 +68,7 @@ export default function PatientHeader({
       <div className="flex items-center gap-2 flex-wrap justify-end">
         <button type="button" onClick={onAddRecord} className="btn-primary">
           <Plus className="w-4 h-4" />
-          오늘 기록 추가
+          오늘 메모
         </button>
         {onPhotoUpload && (
           <>
