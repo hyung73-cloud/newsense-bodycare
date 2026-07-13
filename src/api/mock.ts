@@ -134,8 +134,6 @@ export const progressStats: ProgressStats = {
   incomplete: 0,
 };
 
-export const recentMemos: RecentMemo[] = [];
-
 function generateCalendarDays(year: number, month: number): CalendarDay[] {
   const days: CalendarDay[] = [];
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -184,7 +182,39 @@ export function getProgressStats(): ProgressStats {
 }
 
 export function getRecentMemos(limit = 3): RecentMemo[] {
-  return recentMemos.slice(0, limit);
+  const AUTO_NOTE_PREFIXES = [
+    '오늘 체형 사진 업로드',
+    '그전 체형 사진 업로드',
+    '패키지 등록:',
+  ];
+
+  const withNotes = visits
+    .filter((v) => {
+      if (v.hidden) return false;
+      const note = v.doctorNote?.trim();
+      if (!note) return false;
+      return !AUTO_NOTE_PREFIXES.some((p) => note === p || note.startsWith(p));
+    })
+    .sort((a, b) => {
+      const byDate = b.date.localeCompare(a.date);
+      if (byDate !== 0) return byDate;
+      return (b.enteredAt || '').localeCompare(a.enteredAt || '');
+    });
+
+  const items: RecentMemo[] = [];
+  for (const v of withNotes) {
+    const patient = patients.find((p) => p.id === v.patientId);
+    if (!patient) continue;
+    items.push({
+      id: `m-${v.id}`,
+      date: v.date.replace(/-/g, '.'),
+      patientName: patient.name,
+      patientId: patient.id,
+      summary: v.doctorNote.trim().slice(0, 80),
+    });
+    if (items.length >= limit) break;
+  }
+  return items;
 }
 
 export function getRecentPatients(limit = 3): Patient[] {
@@ -572,17 +602,6 @@ function recalcTodayStats(): void {
   if (allowCacheWrite) saveDataCache();
 }
 
-function prependRecentMemo(patient: Patient, summary: string): void {
-  recentMemos.unshift({
-    id: `m-${Date.now()}`,
-    date: todayStats.date.split(' ')[0],
-    patientName: patient.name,
-    patientId: patient.id,
-    summary,
-  });
-  if (recentMemos.length > 10) recentMemos.pop();
-}
-
 export async function createPatientWithTodayVisit(
   patientData: NewPatientFormData,
   visitData: VisitFormData,
@@ -609,7 +628,6 @@ export async function createPatientWithTodayVisit(
     ...visitData,
     doctorNote: visitData.doctorNote || '신규 환자 등록 및 초진 기록',
   });
-  prependRecentMemo(patient, visit.doctorNote.slice(0, 40));
   return { patient, visit };
 }
 
@@ -622,8 +640,6 @@ export async function registerReturningPatientToday(
     return (await updateVisit(existing.id, visitData))!;
   }
   const visit = await addVisitToday(patientId, visitData);
-  const patient = getPatientById(patientId);
-  if (patient) prependRecentMemo(patient, visit.doctorNote.slice(0, 40));
   return visit;
 }
 

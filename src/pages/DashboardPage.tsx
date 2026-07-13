@@ -6,7 +6,6 @@ import {
   Camera,
   FileText,
   XCircle,
-  ChevronRight,
   RefreshCw,
 } from 'lucide-react';
 import TopNav from '../components/TopNav';
@@ -149,23 +148,25 @@ export default function DashboardPage() {
             </div>
             <div className="panel-card p-4 md:p-5 md:col-span-2 xl:col-span-1 flex flex-col min-h-[140px] xl:min-h-0 xl:flex-1">
               <div className="flex items-center justify-between mb-2 flex-shrink-0">
-                <h3 className="panel-title">최근 메모(3건)</h3>
-                <button type="button" className="text-[10px] text-primary flex items-center gap-0.5 hover:underline">
-                  더보기 <ChevronRight className="w-3 h-3" />
-                </button>
+                <h3 className="panel-title">최근 메모({memos.length}건)</h3>
               </div>
               <div className="space-y-2 flex-1">
+                {memos.length === 0 && (
+                  <p className="text-xs text-gray-400 py-2">작성된 메모가 없습니다</p>
+                )}
                 {memos.map((m, idx) => (
-                  <div
+                  <button
                     key={m.id}
-                    className={`pb-2 last:pb-0 ${idx > 0 ? 'section-divider pt-2' : ''}`}
+                    type="button"
+                    onClick={() => navigate(`/patient/${m.patientId}`)}
+                    className={`w-full text-left pb-2 last:pb-0 hover:opacity-80 ${idx > 0 ? 'section-divider pt-2' : ''}`}
                   >
                     <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mb-0.5">
                       <span>{m.date}</span>
                       <span className="font-medium text-gray-700">{m.patientName}</span>
                     </div>
-                    <p className="text-xs text-gray-600 leading-relaxed">{m.summary}</p>
-                  </div>
+                    <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{m.summary}</p>
+                  </button>
                 ))}
               </div>
             </div>
