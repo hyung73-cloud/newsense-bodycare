@@ -10,6 +10,10 @@ const LEGACY_PACKAGES: Record<string, { price: number; items: string }> = {
     price: 85000,
     items: '2회진료권 전체 포함, 허리둘레 측정, 악력(근력)측정, 당화혈색소 검사',
   },
+  '8회진료권 · 체형관리': {
+    price: 170000,
+    items: '5회진료권 전체 포함, 카복시 관리(4회), HPL(+5), 체형사진(+1)',
+  },
   '10회진료권 · 체형관리': {
     price: 170000,
     items: '5회진료권 전체 포함, 카복시 관리(4회), HPL(+5), 체형사진(+1)',

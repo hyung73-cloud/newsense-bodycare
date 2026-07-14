@@ -96,7 +96,7 @@ const LEVELS: Level[] = [
   {
     key: 'premium',
     badge: 'LEVEL 3',
-    name: '10회진료권',
+    name: '8회진료권',
     subtitle: '체형관리',
     price: 170000,
     color: 'text-purple-600',
@@ -644,7 +644,7 @@ export default function PackageSelectPage() {
             ) : (
               <div className="bg-gray-50 rounded-xl p-4 text-center">
                 <p className="text-sm text-gray-500">
-                  Plus 프로그램은 <strong className="text-purple-600">10회진료권 · 체형관리</strong> 선택 시 이용 가능합니다.
+                  Plus 프로그램은 <strong className="text-purple-600">8회진료권 · 체형관리</strong> 선택 시 이용 가능합니다.
                 </p>
               </div>
             )}
