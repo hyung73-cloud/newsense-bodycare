@@ -66,6 +66,7 @@ interface PlusOption {
   key: string;
   name: string;
   price: number;
+  description: string;
 }
 
 const LEVELS: Level[] = [
@@ -138,9 +139,9 @@ const FOCUSED_OPTIONS: FocusedOption[] = [
 ];
 
 const PLUS_OPTIONS: PlusOption[] = [
-  { key: 'plus-20', name: 'Plus 20', price: 200000 },
-  { key: 'plus-50', name: 'Plus 50', price: 500000 },
-  { key: 'plus-90', name: 'Plus 90', price: 900000 },
+  { key: 'plus-20', name: 'Plus 20', price: 200000, description: '눈밑지방(RF/리바이브)' },
+  { key: 'plus-50', name: 'Plus 50', price: 500000, description: '눈밑/볼관자/팔자주름 필러' },
+  { key: 'plus-90', name: 'Plus 90', price: 900000, description: '눈밑/볼관자/팔자/탄력/피부처짐' },
 ];
 
 const PLUS_USABLE = ['보톡스', '필러', '레이저', '피부관리', '비만시술', '리프팅', '탄력관리', '색소관리'];
@@ -625,6 +626,7 @@ export default function PackageSelectPage() {
                       >
                         <div className="text-xs font-bold text-amber-700 mb-1">{opt.name}</div>
                         <div className={`text-lg font-extrabold ${active ? 'text-amber-700' : 'text-gray-900'}`}>{won(opt.price)}</div>
+                        <div className="text-[11px] leading-4 text-gray-500 mt-2 break-keep">{opt.description}</div>
                       </button>
                     );
                   })}
