@@ -626,7 +626,7 @@ export default function PackageSelectPage() {
                       >
                         <div className="text-xs font-bold text-amber-700 mb-1">{opt.name}</div>
                         <div className={`text-lg font-extrabold ${active ? 'text-amber-700' : 'text-gray-900'}`}>{won(opt.price)}</div>
-                        <div className="text-[11px] leading-4 text-gray-500 mt-2 break-keep">{opt.description}</div>
+                        <div className="text-[11px] leading-4 text-blue-600 font-bold mt-2 break-keep">{opt.description}</div>
                       </button>
                     );
                   })}
